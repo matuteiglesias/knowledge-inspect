@@ -67,6 +67,14 @@ class KBConfig:
     def exports_dir(self) -> Path:
         return self.artifacts_dir / "exports"
 
+    @property
+    def chunk_sets_dir(self) -> Path:
+        return self.artifacts_dir / "chunk_sets"
+
+    @property
+    def summaries_dir(self) -> Path:
+        return self.artifacts_dir / "summaries"
+
     def ensure_dirs(self) -> None:
         self.kb_root.mkdir(parents=True, exist_ok=True)
         self.chat_jsonl_dir.mkdir(parents=True, exist_ok=True)
@@ -74,6 +82,8 @@ class KBConfig:
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
         self.run_records_dir.mkdir(parents=True, exist_ok=True)
         self.exports_dir.mkdir(parents=True, exist_ok=True)
+        self.chunk_sets_dir.mkdir(parents=True, exist_ok=True)
+        self.summaries_dir.mkdir(parents=True, exist_ok=True)
         self.cache_db.parent.mkdir(parents=True, exist_ok=True)
 
 

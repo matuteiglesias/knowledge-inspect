@@ -8,6 +8,10 @@
 - Preserve run record + manifest + observability emission invariants for every seam.
 - Maintain one shared run-record contract helper so seams do not drift.
 - Maintain separation between public artifact surface and internal storage/parser/vectorstore implementation details.
+- Treat `kb_chat_ingest` canonical output as Chunk Bus-compatible chunk-set artifacts.
+- Treat `kb_chat_analyze` canonical output as Summary Bus-compatible summary artifacts (markdown export remains companion).
+- Keep Chroma/SQLite/processed-files state as internal operational side effects, not contract outputs.
+- Keep `kb_papers_grobid` explicitly transitional adapter.
 
 ## Known blocker
 - `kb_papers_grobid` depends on importable external `grobid_ingest.py` adapter; provider/runtime availability remains an external dependency.

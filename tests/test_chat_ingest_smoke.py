@@ -51,8 +51,25 @@ class ChatIngestSmokeTests(unittest.TestCase):
                 self.assertTrue(rr_path.exists(), "run record should exist")
                 self.assertIn("manifest_path", res.run_record["outputs"])
                 self.assertIn("observability_latest_path", res.run_record["outputs"])
+                self.assertIn("chunk_set_artifact_path", res.run_record["outputs"])
                 self.assertTrue(Path(res.run_record["outputs"]["manifest_path"]).exists(), "manifest should exist")
                 self.assertTrue(Path(res.run_record["outputs"]["observability_latest_path"]).exists(), "observability latest should exist")
+
+                chunk_set_path = Path(res.run_record["outputs"]["chunk_set_artifact_path"])
+                self.assertTrue(chunk_set_path.exists(), "chunk set artifact should exist")
+                chunk_set = json.loads(chunk_set_path.read_text(encoding="utf-8"))
+                self.assertEqual(chunk_set["artifact_family"], "chunk_bus")
+                self.assertEqual(chunk_set["artifact_kind"], "chunk_set")
+                self.assertEqual(chunk_set["entrypoint"], "kb_chat_ingest")
+                self.assertIn("source_items", chunk_set)
+                self.assertIn("chunks", chunk_set)
+                self.assertIn("chunk_count", chunk_set)
+
+                manifest_path = Path(res.run_record["outputs"]["manifest_path"])
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                artifact_by_kind = {a["artifact_kind"]: a for a in manifest["artifacts"]}
+                self.assertIn("chunk_set", artifact_by_kind)
+                self.assertEqual(Path(artifact_by_kind["chunk_set"]["path"]), chunk_set_path)
 
                 smoke_artifact_path = Path(res.run_record["outputs"]["smoke_artifact_path"])
                 self.assertTrue(smoke_artifact_path.exists(), "smoke artifact should exist")

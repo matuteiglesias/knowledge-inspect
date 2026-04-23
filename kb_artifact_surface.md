@@ -4,11 +4,13 @@
 - `artifacts/run_records/<run_id>.run_record.json`
 - `artifacts/manifests/<run_id>.manifest.json`
 - `artifacts/observability/<operator>.latest.json`
-- `artifacts/exports/<export_name>` (analyze seam)
+- `artifacts/chunk_sets/<run_id>.chunk_set.json` (ingest canonical output; Chunk Bus compatible)
+- `artifacts/summaries/<run_id>.summary.json` (analyze canonical output; Summary Bus compatible)
+- `artifacts/exports/<export_name>` (analyze companion export)
 
 ## Separation from internals
 - Public artifacts above are stable, inspectable surfaces.
-- Internal caches/state such as `embedding_cache.sqlite`, `store/`, parser metadata internals, and private module functions are non-contract internals.
+- Internal caches/state such as `embedding_cache.sqlite`, `store/` (Chroma), processed-files state, parser metadata internals, and private module functions are non-contract internals.
 
 ## Consumer contract
 Consumers and UI integrations should discover status/results via run records, manifests, and observability indexes; they should not parse arbitrary internal directories.
