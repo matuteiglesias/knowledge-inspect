@@ -1,4 +1,4 @@
-# kb (core modules only)
+# knowledge-inspect
 
 This folder contains the core, reusable building blocks used by higher-level pipelines.
 
@@ -11,4 +11,3 @@ Included in this bundle (v1):
 - `vectorstore/chroma_io.py`: batch add/get helpers for Chroma
 
 Not included yet: pipelines and CLI wrappers.
-# knowledge-inspect
