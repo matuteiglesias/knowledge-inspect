@@ -17,11 +17,57 @@ from dataclasses import dataclass
 from pathlib import Path
 import datetime as dt
 import hashlib
+import importlib.util
 import json
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from llama_index.core import Document
-from llama_index.core.node_parser import MarkdownNodeParser
+if importlib.util.find_spec("llama_index") is not None:
+    from llama_index.core import Document
+    from llama_index.core.node_parser import MarkdownNodeParser
+else:
+    @dataclass
+    class Document:  # type: ignore[no-redef]
+        text: str
+        metadata: Dict[str, Any] | None = None
+
+    @dataclass
+    class _SimpleNode:
+        text: str
+        metadata: Dict[str, Any]
+
+    class MarkdownNodeParser:  # type: ignore[no-redef]
+        def __init__(self, *, include_metadata: bool = True):
+            self.include_metadata = include_metadata
+
+        def get_nodes_from_documents(self, docs: list[Document]) -> list[_SimpleNode]:
+            out: list[_SimpleNode] = []
+            for doc in docs:
+                text = getattr(doc, "text", "") or ""
+                lines = text.splitlines()
+                sections: list[tuple[list[str], list[str]]] = []
+                current_headers: list[str] = []
+                current_body: list[str] = []
+                for line in lines:
+                    if line.startswith("#"):
+                        if current_body:
+                            sections.append((current_headers[:], current_body[:]))
+                            current_body = []
+                        header_text = line.lstrip("#").strip()
+                        if line.startswith("## "):
+                            current_headers = [header_text]
+                        elif line.startswith("### "):
+                            if not current_headers:
+                                current_headers = ["untitled"]
+                            current_headers = current_headers[:1] + [header_text]
+                    else:
+                        current_body.append(line)
+                if current_body:
+                    sections.append((current_headers[:], current_body[:]))
+                for headers, body_lines in sections:
+                    node_text = "\n".join(body_lines).strip()
+                    metadata = {"header_path": headers} if self.include_metadata else {}
+                    out.append(_SimpleNode(text=node_text, metadata=metadata))
+            return out
 
 
 def _ms_to_iso(ts_ms: int) -> str:

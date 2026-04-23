@@ -24,6 +24,7 @@ class ContractComplianceTests(unittest.TestCase):
         note = (ROOT / "kb_health_contract.md").read_text(encoding="utf-8")
         self.assertIn("Cheap smoke", note)
         self.assertIn("Real ingest", note)
+        self.assertIn("--smoke", note)
         self.assertIn("--dry-run", note)
 
     def test_pipeline_sources_include_manifest_and_observability_writes(self) -> None:

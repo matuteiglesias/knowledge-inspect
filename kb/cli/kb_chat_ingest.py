@@ -24,7 +24,8 @@ def _parse_args(argv):
     ap.add_argument("--paths", nargs="*", default=None, help="Explicit JSONL file paths")
     ap.add_argument("--glob", default=None, help="Glob pattern to expand into paths")
     ap.add_argument("--reset-collection", action="store_true", help="Reset Chroma collection (destructive). Requires allow_reset.")
-    ap.add_argument("--dry-run", action="store_true", help="Parse+embed but do not write to Chroma nor mark processed_files.")
+    ap.add_argument("--smoke", action="store_true", help="Provider-independent cheap smoke: load config, parse inputs, and emit artifacts without embedding or Chroma writes.")
+    ap.add_argument("--dry-run", action="store_true", help="Dev mode: parse+embed but do not write to Chroma nor mark processed_files.")
     ap.add_argument("--batch-size", type=int, default=128, help="Chroma add batch size")
     return ap.parse_args(argv)
 
@@ -45,9 +46,14 @@ def main(argv=None) -> int:
         print("No input paths. Use --paths or --glob.", file=sys.stderr)
         return 2
 
+    if args.smoke and args.dry_run:
+        print("--smoke and --dry-run are mutually exclusive.", file=sys.stderr)
+        return 2
+
     res = ingest_paths(
         paths,
         reset_collection=bool(args.reset_collection),
+        smoke=bool(args.smoke),
         dry_run=bool(args.dry_run),
         batch_size=int(args.batch_size),
     )
