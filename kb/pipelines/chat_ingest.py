@@ -53,6 +53,39 @@ def _write_json_atomic(path: Path, obj: Dict[str, Any]) -> None:
     tmp.replace(path)
 
 
+def _write_contract_artifacts(cfg: KBConfig, run_record: Dict[str, Any], rr_path: Path) -> Dict[str, str]:
+    manifest_dir = cfg.artifacts_dir / "manifests"
+    observability_dir = cfg.artifacts_dir / "observability"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    observability_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest_path = manifest_dir / f"{run_record['run_id']}.manifest.json"
+    manifest = {
+        "manifest_version": 1,
+        "run_id": run_record["run_id"],
+        "operator": run_record["operator"],
+        "status": run_record["status"],
+        "artifacts": {
+            "run_record": str(rr_path),
+            "public_outputs": run_record.get("outputs", {}),
+        },
+    }
+    _write_json_atomic(manifest_path, manifest)
+
+    latest_path = observability_dir / f"{run_record['operator']}.latest.json"
+    _write_json_atomic(latest_path, {
+        "run_id": run_record["run_id"],
+        "operator": run_record["operator"],
+        "status": run_record["status"],
+        "started_at": run_record.get("started_at"),
+        "finished_at": run_record.get("finished_at"),
+        "run_record_path": str(rr_path),
+        "manifest_path": str(manifest_path),
+    })
+
+    return {"manifest_path": str(manifest_path), "observability_latest_path": str(latest_path)}
+
+
 def _make_embed_fn(cfg: KBConfig):
     """
     Returns a function embed(text:str)->np.ndarray[float32].
@@ -264,6 +297,9 @@ def ingest_paths(
         })
 
     finally:
+        run_record["outputs"]["run_record_path"] = str(rr_path)
+        contract_outputs = _write_contract_artifacts(cfg, run_record, rr_path)
+        run_record["outputs"].update(contract_outputs)
         try:
             _write_json_atomic(rr_path, run_record)
         except Exception:
