@@ -9,8 +9,9 @@ Operate and debug `kb/` via contracts, not internals.
 3. `python -m kb.cli.kb_papers_grobid <paper.pdf>`
 
 ## Smoke and real runs
-- Cheap smoke: `python -m kb.cli.kb_chat_ingest --paths <...> --dry-run`
-- Real ingest: same command without `--dry-run`
+- Cheap smoke (canonical): `python -m kb.cli.kb_chat_ingest --paths <...> --smoke`
+- Real ingest: same command without `--smoke`
+- Dev/debug dry-run: `python -m kb.cli.kb_chat_ingest --paths <...> --dry-run` (still uses embedding provider path, but skips persistence side effects)
 
 ## Outputs to inspect first
 1. `artifacts/observability/<operator>.latest.json`

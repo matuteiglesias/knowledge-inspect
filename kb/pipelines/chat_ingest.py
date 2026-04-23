@@ -28,14 +28,9 @@ import time
 import traceback
 import datetime as dt
 
-import numpy as np
-
 from kb.config.kb_config import KBConfig, load_config
-from kb.storage.sqlite_cache import SQLiteVecCache
 from kb.storage.processed_files import ProcessedFiles
 from kb.parsers.chat_jsonl import jsonl_to_document, parse_markdown_nodes, filter_substantive_nodes, node_id_from_node_text
-from kb.vectorstore.chroma_client import ChromaConfig, get_collection
-from kb.vectorstore.chroma_io import add_nodes
 
 
 def _utc_now_iso() -> str:
@@ -98,6 +93,7 @@ def _make_embed_fn(cfg: KBConfig):
     """
     prov = (cfg.embed_provider or "").strip().lower()
     if prov == "jina":
+        import numpy as np
         from llama_index.embeddings.jinaai import JinaEmbedding
         api_key = os.environ.get(cfg.jina_api_key_env, "")
         if not api_key:
@@ -106,6 +102,7 @@ def _make_embed_fn(cfg: KBConfig):
         return lambda text: np.asarray(emb.get_text_embedding(text), dtype=np.float32)
 
     if prov == "openai":
+        import numpy as np
         from llama_index.embeddings.openai import OpenAIEmbedding
         api_key = os.environ.get(cfg.openai_api_key_env, "")
         if not api_key:
@@ -128,6 +125,7 @@ def ingest_paths(
     *,
     cfg: Optional[KBConfig] = None,
     reset_collection: bool = False,
+    smoke: bool = False,
     dry_run: bool = False,
     batch_size: int = 128,
 ) -> IngestResult:
@@ -162,6 +160,7 @@ def ingest_paths(
             "embed_task": cfg.embed_task,
             "embed_dim": cfg.embed_dim,
             "reset_collection": bool(reset_collection),
+            "smoke": bool(smoke),
             "dry_run": bool(dry_run),
             "batch_size": int(batch_size),
         },
@@ -188,44 +187,60 @@ def ingest_paths(
     client = None
 
     try:
-        embed_fn = _make_embed_fn(cfg)
-        vec_cache = SQLiteVecCache.open(cfg.cache_db)
-        cached_embed = vec_cache.cached_embedder(embed_fn, expected_dim=cfg.embed_dim)
+        smoke_artifact_path: Optional[Path] = None
+        smoke_preview: Dict[str, Any] = {"sample": []}
+        if smoke:
+            run_record["mode"] = "smoke"
+        elif dry_run:
+            run_record["mode"] = "dry_run"
+        else:
+            run_record["mode"] = "ingest"
 
         pf = ProcessedFiles.open(cfg.cache_db)
+        cached_embed = None
+        coll = None
 
-        chroma_cfg = ChromaConfig(chroma_dir=cfg.chroma_dir, collection_name=cfg.collection_name, allow_reset=...)
-        client, coll = get_collection(chroma_cfg, reset=bool(reset_collection))
+        if not smoke:
+            from kb.storage.sqlite_cache import SQLiteVecCache
+            from kb.vectorstore.chroma_client import ChromaConfig, get_collection
+            from kb.vectorstore.chroma_io import add_nodes
 
-        # Ingest loop
-        ids_batch: List[str] = []
-        docs_batch: List[str] = []
-        embs_batch: List[np.ndarray] = []
-        metas_batch: List[Dict[str, Any]] = []
+            embed_fn = _make_embed_fn(cfg)
+            vec_cache = SQLiteVecCache.open(cfg.cache_db)
+            cached_embed = vec_cache.cached_embedder(embed_fn, expected_dim=cfg.embed_dim)
 
-        def flush_batch():
-            if not ids_batch:
-                return
-            if dry_run:
-                # pretend we added them
-                run_record["stats"]["chroma_attempted"] += len(ids_batch)
+            chroma_cfg = ChromaConfig(chroma_dir=cfg.chroma_dir, collection_name=cfg.collection_name, allow_reset=...)
+            client, coll = get_collection(chroma_cfg, reset=bool(reset_collection))
+
+            # Ingest loop
+            ids_batch: List[str] = []
+            docs_batch: List[str] = []
+            embs_batch: List[Any] = []
+            metas_batch: List[Dict[str, Any]] = []
+
+            def flush_batch():
+                if not ids_batch:
+                    return
+                if dry_run:
+                    # Parse+embed dev mode: no persistence side-effects.
+                    run_record["stats"]["chroma_attempted"] += len(ids_batch)
+                    ids_batch.clear(); docs_batch.clear(); embs_batch.clear(); metas_batch.clear()
+                    return
+
+                res = add_nodes(
+                    coll,
+                    ids=ids_batch,
+                    embeddings=embs_batch,
+                    documents=docs_batch,
+                    metadatas=metas_batch,
+                    idempotent=True,
+                )
+                run_record["stats"]["chroma_attempted"] += int(res.attempted)
+                run_record["stats"]["chroma_added"] += int(res.added)
+                run_record["stats"]["chroma_skipped_existing"] += int(res.skipped_existing)
+                run_record["stats"]["chroma_errors"] += int(res.errors)
+
                 ids_batch.clear(); docs_batch.clear(); embs_batch.clear(); metas_batch.clear()
-                return
-
-            res = add_nodes(
-                coll,
-                ids=ids_batch,
-                embeddings=embs_batch,
-                documents=docs_batch,
-                metadatas=metas_batch,
-                idempotent=True,
-            )
-            run_record["stats"]["chroma_attempted"] += int(res.attempted)
-            run_record["stats"]["chroma_added"] += int(res.added)
-            run_record["stats"]["chroma_skipped_existing"] += int(res.skipped_existing)
-            run_record["stats"]["chroma_errors"] += int(res.errors)
-
-            ids_batch.clear(); docs_batch.clear(); embs_batch.clear(); metas_batch.clear()
 
         for p in paths:
             p = Path(p).expanduser()
@@ -257,6 +272,16 @@ def ingest_paths(
                 header_path_str = "/".join(header_path) if isinstance(header_path, list) else (str(header_path) if header_path else "")
                 uid = node_id_from_node_text(text, source_file=p.name, header_path=header_path_str)
 
+                if smoke:
+                    if len(smoke_preview["sample"]) < 5:
+                        smoke_preview["sample"].append({
+                            "source_file": p.name,
+                            "node_id": uid,
+                            "chars": len(text),
+                            "header_path": header_path,
+                        })
+                    continue
+
                 # Embed via cache (idempotent)
                 vec = cached_embed(uid, getattr(n, "text", "") or "")
 
@@ -272,18 +297,33 @@ def ingest_paths(
                 if len(ids_batch) >= int(batch_size):
                     flush_batch()
 
-            # flush at end of file (keeps boundaries stable)
-            flush_batch()
+            if not smoke:
+                # flush at end of file (keeps boundaries stable)
+                flush_batch()
 
-            if not dry_run:
+            if not dry_run and not smoke:
                 pf.mark_processed(p.name)
             run_record["stats"]["files_processed"] += 1
+
+        if smoke:
+            smoke_artifact_path = cfg.exports_dir / f"{run_id}.smoke.json"
+            smoke_preview["run_id"] = run_id
+            smoke_preview["inputs"] = run_record["inputs"]
+            smoke_preview["stats"] = {
+                "files_seen": run_record["stats"]["files_seen"],
+                "files_processed": run_record["stats"]["files_processed"],
+                "nodes_parsed_total": run_record["stats"]["nodes_parsed_total"],
+                "nodes_kept": run_record["stats"]["nodes_kept"],
+            }
+            _write_json_atomic(smoke_artifact_path, smoke_preview)
 
         run_record["outputs"] = {
             "chroma_dir": str(cfg.chroma_dir),
             "collection": cfg.collection_name,
             "run_record_path": str(rr_path),
         }
+        if smoke_artifact_path is not None:
+            run_record["outputs"]["smoke_artifact_path"] = str(smoke_artifact_path)
         run_record["status"] = "ok"
         run_record["finished_at"] = _utc_now_iso()
 
