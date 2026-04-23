@@ -14,6 +14,11 @@ Included in this bundle:
 - `pipelines/papers_grobid.py`: canonical papers seam wrapper with run record + manifest + observability emission
 - `cli/kb_chat_ingest.py`, `cli/kb_chat_analyze.py`, `cli/kb_papers_grobid.py`: canonical operator entrypoints
 
+Current contract scope:
+- Each run emits run record + manifest + module-local observability latest.
+- Manifest includes producer metadata, artifact identity fields, and explicit artifact linkage/checksums where feasible.
+- Observability latest is module-local pointer/index, not a global observability aggregator.
+
 Contract hardening notes and runbook:
 - `docs/modules/kb-module-definition.md`
 - `kb_module_note.md`

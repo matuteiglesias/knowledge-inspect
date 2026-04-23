@@ -22,6 +22,8 @@ It publishes run-level evidence for health/debug before logs are required.
 - All seams emit the same top-level run-record shape.
 - `counters` are canonical (legacy `stats` may exist for compatibility).
 - Outputs are structured artifact records (with path/kind/family/schema/promotion status).
+- Manifest now includes stronger identity + producer metadata (`manifest_version`, `artifact_family`, `artifact_kind`, `schema_version_emitted`, `producer`, `producer_version`), plus per-artifact hash fields when feasible.
+- Observability latest is explicitly module-local observability, with direct links to run record + manifest.
 - Contract records are emitted even when runs fail.
 
 ## Public contract vs internals

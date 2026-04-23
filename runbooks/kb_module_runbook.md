@@ -38,5 +38,10 @@ Per seam, `stages` must explicitly cover:
 ## Debug order
 1. latest observability index
 2. run record status/errors/warnings/counters
-3. manifest outputs
+3. manifest artifact inventory (`artifacts[]`, producer metadata, checksums)
 4. only then inspect lower-level internals/logs
+
+## Observability boundary
+- `artifacts/observability/<operator>.latest.json` is **module-local latest status** for `kb`.
+- It is not an ecosystem-wide aggregator.
+- Use it to jump to canonical run artifacts (`run_record_path`, `manifest_path`) and verify `run_id` + `status` + `completed_at` linkage.

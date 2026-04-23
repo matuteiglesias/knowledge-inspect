@@ -33,4 +33,4 @@ Every canonical seam run emits the same contractual shape:
 ## Required evidence artifacts per run
 - run record JSON
 - manifest JSON
-- observability latest index JSON
+- module-local observability latest index JSON (not a global aggregate index)
