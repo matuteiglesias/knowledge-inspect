@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import os
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -27,7 +27,10 @@ class ContractComplianceTests(unittest.TestCase):
         self.assertIn("--smoke", note)
         self.assertIn("--dry-run", note)
 
-    def test_pipeline_sources_include_manifest_and_observability_writes(self) -> None:
+    def test_pipeline_sources_use_shared_contract_helper(self) -> None:
+        helper_src = (ROOT / "kb/pipelines/run_record_contract.py").read_text(encoding="utf-8")
+        self.assertIn("finalize_and_write_contract_artifacts", helper_src)
+
         pipeline_files = [
             ROOT / "kb/pipelines/chat_ingest.py",
             ROOT / "kb/pipelines/chat_analyze.py",
@@ -35,11 +38,10 @@ class ContractComplianceTests(unittest.TestCase):
         ]
         for path in pipeline_files:
             src = path.read_text(encoding="utf-8")
-            self.assertIn("manifest_path", src, msg=f"missing manifest handling in {path}")
-            self.assertIn("observability", src, msg=f"missing observability handling in {path}")
-            self.assertIn("_write_contract_artifacts", src, msg=f"missing contract helper in {path}")
+            self.assertIn("make_run_record", src, msg=f"missing shared run-record builder in {path}")
+            self.assertIn("finalize_and_write_contract_artifacts", src, msg=f"missing shared contract finalizer in {path}")
 
-    def test_grobid_seam_emits_run_record_manifest_and_observability_even_on_error(self) -> None:
+    def test_grobid_seam_emits_contract_schema_even_on_error(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             os.environ["KB_ROOT"] = td
             cfg = load_config()
@@ -49,6 +51,24 @@ class ContractComplianceTests(unittest.TestCase):
             self.assertTrue(rr_path.exists(), "run record should exist")
 
             rr = json.loads(rr_path.read_text(encoding="utf-8"))
+            self.assertIn(rr["status"], {"success", "empty_success", "partial_success", "error"})
+            for field in [
+                "run_record_version",
+                "project",
+                "entrypoint",
+                "created_at",
+                "completed_at",
+                "stages",
+                "schema_versions",
+                "warnings",
+                "environment",
+                "counters",
+                "inputs",
+                "outputs",
+                "errors",
+            ]:
+                self.assertIn(field, rr)
+
             self.assertIn("manifest_path", rr.get("outputs", {}))
             self.assertIn("observability_latest_path", rr.get("outputs", {}))
 

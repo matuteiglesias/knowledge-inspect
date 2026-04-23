@@ -1,43 +1,23 @@
-"""
-pipelines/chat_analyze.py
-
-Purpose
-- Load all embedded nodes from the Chroma collection.
-- Perform a simple clustering/ordering pass (hierarchical dendrogram leaf order).
-- Export a single combined markdown file (combined_notes.md) into artifacts/exports.
-- Emit run_record.json.
-
-This is intentionally minimal: it creates an analysis *artifact* you can inspect and iterate on.
-"""
+"""Analyze seam for KB."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
-import json
 import traceback
-import datetime as dt
-
-import numpy as np
 
 from kb.config.kb_config import KBConfig, load_config
+from kb.pipelines.run_record_contract import (
+    add_output_artifact,
+    attach_exception,
+    complete_stage,
+    finalize_and_write_contract_artifacts,
+    make_run_id,
+    make_run_record,
+    utc_now_iso,
+)
 from kb.vectorstore.chroma_client import ChromaConfig, get_collection
 from kb.vectorstore.chroma_io import load_vectors_and_min_nodes
-
-
-def _utc_now_iso() -> str:
-    return dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
-
-
-def _make_run_id(prefix: str = "kb_chat_analyze") -> str:
-    return f"{prefix}_{dt.datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}"
-
-
-def _write_json_atomic(path: Path, obj: Dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(path)
 
 
 def _write_text_atomic(path: Path, text: str) -> None:
@@ -45,38 +25,6 @@ def _write_text_atomic(path: Path, text: str) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
-
-
-def _write_contract_artifacts(cfg: KBConfig, run_record: Dict[str, Any], rr_path: Path) -> Dict[str, str]:
-    manifest_dir = cfg.artifacts_dir / "manifests"
-    observability_dir = cfg.artifacts_dir / "observability"
-    manifest_dir.mkdir(parents=True, exist_ok=True)
-    observability_dir.mkdir(parents=True, exist_ok=True)
-
-    manifest_path = manifest_dir / f"{run_record['run_id']}.manifest.json"
-    manifest = {
-        "manifest_version": 1,
-        "run_id": run_record["run_id"],
-        "operator": run_record["operator"],
-        "status": run_record["status"],
-        "artifacts": {
-            "run_record": str(rr_path),
-            "public_outputs": run_record.get("outputs", {}),
-        },
-    }
-    _write_json_atomic(manifest_path, manifest)
-
-    latest_path = observability_dir / f"{run_record['operator']}.latest.json"
-    _write_json_atomic(latest_path, {
-        "run_id": run_record["run_id"],
-        "operator": run_record["operator"],
-        "status": run_record["status"],
-        "started_at": run_record.get("started_at"),
-        "finished_at": run_record.get("finished_at"),
-        "run_record_path": str(rr_path),
-        "manifest_path": str(manifest_path),
-    })
-    return {"manifest_path": str(manifest_path), "observability_latest_path": str(latest_path)}
 
 
 @dataclass(frozen=True)
@@ -96,56 +44,61 @@ def analyze(
     cfg = cfg or load_config()
     cfg.ensure_dirs()
 
-    run_id = _make_run_id()
+    run_id = make_run_id("kb_chat_analyze")
     rr_path = cfg.run_records_dir / f"{run_id}.run_record.json"
     export_path = cfg.exports_dir / export_name
 
-    run_record: Dict[str, Any] = {
-        "run_id": run_id,
-        "operator": "kb.chat_analyze",
-        "started_at": _utc_now_iso(),
-        "finished_at": None,
-        "status": "running",
-        "config": {
-            "kb_root": str(cfg.kb_root),
+    run_record = make_run_record(
+        cfg=cfg,
+        run_id=run_id,
+        entrypoint="kb_chat_analyze",
+        operator="kb.chat_analyze",
+        config={
             "chroma_dir": str(cfg.chroma_dir),
             "collection": cfg.collection_name,
             "batch_size": int(batch_size),
             "max_nodes": max_nodes,
             "export_path": str(export_path),
         },
-        "inputs": {},
-        "outputs": {},
-        "stats": {"nodes_loaded": 0, "export_bytes": 0},
-        "errors": [],
-    }
+        inputs={"items": [{"input_kind": "collection", "collection": cfg.collection_name}]},
+        stage_defs=[
+            {"name": "config_load"},
+            {"name": "input_resolution"},
+            {"name": "parse"},
+            {"name": "export"},
+            {"name": "contract_artifact_emission"},
+        ],
+        counters={"nodes_loaded": 0, "export_bytes": 0},
+    )
 
     try:
+        complete_stage(run_record, "config_load", success=True)
+        complete_stage(run_record, "input_resolution", success=True)
+        complete_stage(run_record, "parse", success=True, details={"state": "started"})
+
         chroma_cfg = ChromaConfig(chroma_dir=cfg.chroma_dir, collection_name=cfg.collection_name, allow_reset=...)
-        client, coll = get_collection(chroma_cfg, reset=False)
+        _, coll = get_collection(chroma_cfg, reset=False)
 
         vecs, nodes = load_vectors_and_min_nodes(coll, batch_size=int(batch_size))
         if max_nodes is not None and vecs.shape[0] > int(max_nodes):
             vecs = vecs[: int(max_nodes)]
             nodes = nodes[: int(max_nodes)]
 
-        run_record["stats"]["nodes_loaded"] = int(vecs.shape[0])
+        run_record["counters"]["nodes_loaded"] = int(vecs.shape[0])
+        complete_stage(run_record, "parse", success=True, details={"nodes_loaded": int(vecs.shape[0])})
+        complete_stage(run_record, "export", success=True, details={"state": "started"})
 
         if vecs.shape[0] == 0:
             combined = "# combined_notes\n\n(no nodes in collection)\n"
             _write_text_atomic(export_path, combined)
         else:
-            # Hierarchical clustering leaf ordering (cosine distance, average linkage)
+            from scipy.cluster.hierarchy import leaves_list, linkage
             from scipy.spatial.distance import pdist
-            from scipy.cluster.hierarchy import linkage, leaves_list
 
             Z = linkage(pdist(vecs, metric="cosine"), method="average")
             order = leaves_list(Z)
 
-            parts = []
-            parts.append("# combined_notes")
-            parts.append(f"\nGenerated at {_utc_now_iso()} from collection '{cfg.collection_name}'.\n")
-
+            parts = ["# combined_notes", f"\nGenerated at {utc_now_iso()} from collection '{cfg.collection_name}'.\n"]
             for idx in order:
                 n = nodes[int(idx)]
                 hdr = (n.metadata or {}).get("header_path")
@@ -154,34 +107,34 @@ def analyze(
                 if hdr_str:
                     parts.append(f"## {hdr_str}\n")
                 parts.append(n.text.rstrip() + "\n")
+            _write_text_atomic(export_path, "\n".join(parts))
 
-            combined = "\n".join(parts)
-            _write_text_atomic(export_path, combined)
+        run_record["counters"]["export_bytes"] = int(export_path.stat().st_size) if export_path.exists() else 0
+        complete_stage(run_record, "export", success=True, details={"export_bytes": run_record["counters"]["export_bytes"]})
 
-        run_record["outputs"] = {
-            "export_path": str(export_path),
-            "run_record_path": str(rr_path),
-        }
-        run_record["finished_at"] = _utc_now_iso()
-        run_record["status"] = "ok"
-        run_record["stats"]["export_bytes"] = int(export_path.stat().st_size) if export_path.exists() else 0
+        run_record["outputs"].update({"export_path": str(export_path), "run_record_path": str(rr_path)})
+        add_output_artifact(
+            run_record,
+            path=export_path,
+            artifact_kind="analysis_export",
+            artifact_family="export",
+            schema_version=1,
+        )
+        run_record["stats"] = dict(run_record["counters"])
 
     except Exception as e:
-        run_record["status"] = "error"
-        run_record["finished_at"] = _utc_now_iso()
-        run_record["errors"].append({
-            "type": "exception",
-            "message": str(e),
-            "traceback": traceback.format_exc(),
-        })
+        complete_stage(run_record, "parse", success=False)
+        complete_stage(run_record, "export", success=False)
+        attach_exception(run_record, e)
 
     finally:
         run_record["outputs"]["run_record_path"] = str(rr_path)
-        contract_outputs = _write_contract_artifacts(cfg, run_record, rr_path)
-        run_record["outputs"].update(contract_outputs)
-        try:
-            _write_json_atomic(rr_path, run_record)
-        except Exception:
-            pass
+        requested_status = "error" if run_record.get("errors") else ("empty_success" if run_record["counters"].get("nodes_loaded", 0) == 0 else "success")
+        finalize_and_write_contract_artifacts(
+            cfg=cfg,
+            run_record=run_record,
+            rr_path=rr_path,
+            requested_status=requested_status,
+        )
 
     return AnalyzeResult(run_record_path=rr_path, export_path=export_path, run_record=run_record)

@@ -1,12 +1,22 @@
 # KB Health Contract
 
 ## Run record invariant
-Every canonical seam run emits:
-- `run_id`
-- `operator`
-- `started_at` / `finished_at`
-- `status` (`ok` or `error`)
-- `inputs`, `outputs`, `stats`, `errors`
+Every canonical seam run emits the same contractual shape:
+- `run_record_version`
+- `project` (`"kb"`)
+- `entrypoint` (`kb_chat_ingest` | `kb_chat_analyze` | `kb_papers_grobid`)
+- `created_at` / `completed_at`
+- `status` (`success` | `empty_success` | `partial_success` | `error`)
+- `stages`
+- `schema_versions`
+- `warnings`
+- `environment` (safe metadata only)
+- `counters` (canonical stats)
+- structured `inputs`
+- structured `outputs` (artifact records include `path`, `artifact_kind`, `artifact_family`, `schema_version`, `promotion_status`)
+- `errors`
+
+`started_at` / `finished_at` and `ok` / `running` are no longer canonical persisted fields.
 
 ## Cheap smoke vs real ingest
 - **Cheap smoke (canonical):** `kb_chat_ingest --smoke` (provider-independent contract smoke).
@@ -16,8 +26,9 @@ Every canonical seam run emits:
 - **Optional dev mode:** `kb_chat_ingest --dry-run` remains parse+embed without persistence and is not the canonical cheap smoke.
 
 ## Failure semantics
-- Provider/external failures are reflected as run status `error` with traceback evidence in `errors`.
-- Wiring/configuration failures are similarly explicit in run record errors and are not inferred from private logs.
+- Failures still emit final contract-shape run records.
+- Provider/external failures are reflected as status `error` with traceback evidence in `errors`.
+- Recoverable/data issues may produce `partial_success` with populated `warnings` and/or `errors`.
 
 ## Required evidence artifacts per run
 - run record JSON

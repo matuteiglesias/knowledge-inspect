@@ -1,17 +1,24 @@
 # KB Module Runbook
 
 ## Purpose
-Operate and debug `kb/` via contracts, not internals.
+Operate and debug `kb/` via contractual artifacts, not internals.
 
 ## Canonical entrypoints
 1. `python -m kb.cli.kb_chat_ingest --paths <...>`
 2. `python -m kb.cli.kb_chat_analyze --export-name combined_notes.md`
 3. `python -m kb.cli.kb_papers_grobid <paper.pdf>`
 
+## Contractual run-record status set
+Final persisted run statuses are only:
+- `success`
+- `empty_success`
+- `partial_success`
+- `error`
+
 ## Smoke and real runs
 - Cheap smoke (canonical): `python -m kb.cli.kb_chat_ingest --paths <...> --smoke`
 - Real ingest: same command without `--smoke`
-- Dev/debug dry-run: `python -m kb.cli.kb_chat_ingest --paths <...> --dry-run` (still uses embedding provider path, but skips persistence side effects)
+- Dev/debug dry-run: `python -m kb.cli.kb_chat_ingest --paths <...> --dry-run`
 
 ## Outputs to inspect first
 1. `artifacts/observability/<operator>.latest.json`
@@ -19,13 +26,17 @@ Operate and debug `kb/` via contracts, not internals.
 3. `artifacts/manifests/<run_id>.manifest.json`
 4. `artifacts/exports/*` (for analyze)
 
-## Failure modes
-- Missing input paths.
-- Missing provider credentials.
-- External provider/tooling failures (e.g., GROBID adapter/import).
+## Stage model to verify
+Per seam, `stages` must explicitly cover:
+- `config_load`
+- `input_resolution`
+- `parse`
+- `embed_persist` when applicable
+- `export` when applicable
+- `contract_artifact_emission`
 
 ## Debug order
 1. latest observability index
-2. run record status/errors
+2. run record status/errors/warnings/counters
 3. manifest outputs
 4. only then inspect lower-level internals/logs

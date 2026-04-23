@@ -2,7 +2,7 @@
 
 ## Purpose (canonical)
 `kb/` ingests document-like sources and emits inspectable knowledge artifacts through sanctioned seams.
-It standardizes run recording for every execution.
+It standardizes contractual run recording for every execution.
 It provides one canonical operator command per seam.
 It keeps storage + parsing internals private to avoid accidental contract coupling.
 It publishes run-level evidence for health/debug before logs are required.
@@ -16,6 +16,13 @@ It publishes run-level evidence for health/debug before logs are required.
 1. `kb_chat_ingest`
 2. `kb_chat_analyze`
 3. `kb_papers_grobid`
+
+## Contract highlights
+- Shared run-record constructor/finalizer is used by all three seams.
+- All seams emit the same top-level run-record shape.
+- `counters` are canonical (legacy `stats` may exist for compatibility).
+- Outputs are structured artifact records (with path/kind/family/schema/promotion status).
+- Contract records are emitted even when runs fail.
 
 ## Public contract vs internals
 - **Public contract:** CLI entrypoints, run records, manifests, observability indexes, export artifact paths.

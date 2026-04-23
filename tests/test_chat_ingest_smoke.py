@@ -41,8 +41,10 @@ class ChatIngestSmokeTests(unittest.TestCase):
                 with patch("kb.pipelines.chat_ingest._make_embed_fn", side_effect=AssertionError("embed provider should not be used in smoke")):
                     res = ingest_paths([input_path], cfg=cfg, smoke=True)
 
-                self.assertEqual(res.run_record["status"], "ok")
-                self.assertEqual(res.run_record.get("mode"), "smoke")
+                self.assertEqual(res.run_record["status"], "success")
+                self.assertEqual(res.run_record.get("entrypoint"), "kb_chat_ingest")
+                self.assertIn("created_at", res.run_record)
+                self.assertIn("completed_at", res.run_record)
                 self.assertIn("smoke_artifact_path", res.run_record.get("outputs", {}))
 
                 rr_path = res.run_record_path
@@ -63,7 +65,7 @@ class ChatIngestSmokeTests(unittest.TestCase):
                 finally:
                     pf.close()
 
-                self.assertEqual(int(res.run_record["stats"]["chroma_attempted"]), 0, "smoke should not write to chroma")
+                self.assertEqual(int(res.run_record["counters"]["chroma_attempted"]), 0, "smoke should not write to chroma")
             finally:
                 for key, value in original_env.items():
                     if value is None:
