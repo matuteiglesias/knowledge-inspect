@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Set
 import os
 
 from kb.config.kb_config import KBConfig, load_config
@@ -116,6 +116,9 @@ def ingest_paths(
     vec_cache = None
     pf = None
     client = None
+    canonical_chunk_set_path = cfg.chunk_sets_dir / f"{run_id}.chunk_set.json"
+    source_items: Set[str] = set()
+    canonical_chunks: List[Dict[str, Any]] = []
 
     try:
         complete_stage(run_record, "config_load", success=True)
@@ -185,6 +188,7 @@ def ingest_paths(
                 continue
 
             doc = jsonl_to_document(p)
+            source_items.add(p.name)
             nodes = parse_markdown_nodes(doc, include_metadata=True)
             run_record["counters"]["nodes_parsed_total"] += int(len(nodes))
 
@@ -199,6 +203,17 @@ def ingest_paths(
                     header_path = None
                 header_path_str = "/".join(header_path) if isinstance(header_path, list) else (str(header_path) if header_path else "")
                 uid = node_id_from_node_text(text, source_file=p.name, header_path=header_path_str)
+                canonical_chunks.append(
+                    {
+                        "chunk_id": uid,
+                        "source_file": p.name,
+                        "header_path": header_path,
+                        "text": text,
+                        "metadata": {
+                            "date": (doc.metadata or {}).get("date", p.stem),
+                        },
+                    }
+                )
 
                 if smoke:
                     if len(smoke_preview["sample"]) < 5:
@@ -249,11 +264,38 @@ def ingest_paths(
                 schema_version=1,
             )
 
+        chunk_set_artifact = {
+            "artifact_family": "chunk_bus",
+            "artifact_kind": "chunk_set",
+            "schema_version": 1,
+            "run_id": run_id,
+            "producer": "kb",
+            "entrypoint": "kb_chat_ingest",
+            "source_items": sorted(source_items),
+            "chunks": canonical_chunks,
+            "chunk_count": len(canonical_chunks),
+        }
+        write_json_atomic(canonical_chunk_set_path, chunk_set_artifact)
+        add_output_artifact(
+            run_record,
+            path=canonical_chunk_set_path,
+            artifact_kind="chunk_set",
+            artifact_family="chunk_bus",
+            schema_version=1,
+            promotion_status="active",
+            extra={"is_primary": True},
+        )
+
         run_record["outputs"].update({
-            "chroma_dir": str(cfg.chroma_dir),
-            "collection": cfg.collection_name,
+            "chunk_set_artifact_path": str(canonical_chunk_set_path),
             "run_record_path": str(rr_path),
         })
+        run_record["outputs"]["internal_side_effects"] = {
+            "chroma_dir": str(cfg.chroma_dir),
+            "collection": cfg.collection_name,
+            "sqlite_cache_db": str(cfg.cache_db),
+            "processed_files_state": str(cfg.cache_db),
+        }
         if smoke_artifact_path is not None:
             run_record["outputs"]["smoke_artifact_path"] = str(smoke_artifact_path)
 

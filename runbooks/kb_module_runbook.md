@@ -24,7 +24,9 @@ Final persisted run statuses are only:
 1. `artifacts/observability/<operator>.latest.json`
 2. `artifacts/run_records/<run_id>.run_record.json`
 3. `artifacts/manifests/<run_id>.manifest.json`
-4. `artifacts/exports/*` (for analyze)
+4. `artifacts/chunk_sets/<run_id>.chunk_set.json` (for ingest canonical output)
+5. `artifacts/summaries/<run_id>.summary.json` (for analyze canonical output)
+6. `artifacts/exports/*` (analyze companion markdown export)
 
 ## Stage model to verify
 Per seam, `stages` must explicitly cover:

@@ -35,6 +35,16 @@ class ContractComplianceTests(unittest.TestCase):
         self.assertIn("--smoke", note)
         self.assertIn("--dry-run", note)
 
+    def test_bus_role_decision_note_exists_and_declares_seam_roles(self) -> None:
+        note = (ROOT / "kb_bus_role_decision.md").read_text(encoding="utf-8")
+        self.assertIn("kb_chat_ingest", note)
+        self.assertIn("consumer + producer", note)
+        self.assertIn("chunk_set", note)
+        self.assertIn("kb_chat_analyze", note)
+        self.assertIn("chunk_set_summary", note)
+        self.assertIn("kb_papers_grobid", note)
+        self.assertIn("transitional", note)
+
     def test_pipeline_sources_use_shared_contract_helper(self) -> None:
         helper_src = (ROOT / "kb/pipelines/run_record_contract.py").read_text(encoding="utf-8")
         self.assertIn("finalize_and_write_contract_artifacts", helper_src)
