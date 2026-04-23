@@ -41,7 +41,7 @@ def main(argv=None) -> int:
     )
     print(f"run_record: {res.run_record_path}")
     print(f"status: {res.run_record.get('status')}")
-    if res.run_record.get("status") != "ok":
+    if res.run_record.get("status") not in {"success", "empty_success", "partial_success"}:
         print("errors:", res.run_record.get("errors"), file=sys.stderr)
         return 1
     return 0
