@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -14,6 +15,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ContractComplianceTests(unittest.TestCase):
+    def _sha256(self, path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as fh:
+            for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
     def test_canonical_entrypoints_note_contains_one_command_per_seam(self) -> None:
         note = (ROOT / "kb_entrypoints.md").read_text(encoding="utf-8")
         self.assertIn("python -m kb.cli.kb_chat_ingest", note)
@@ -41,7 +49,7 @@ class ContractComplianceTests(unittest.TestCase):
             self.assertIn("make_run_record", src, msg=f"missing shared run-record builder in {path}")
             self.assertIn("finalize_and_write_contract_artifacts", src, msg=f"missing shared contract finalizer in {path}")
 
-    def test_grobid_seam_emits_contract_schema_even_on_error(self) -> None:
+    def test_grobid_seam_emits_contract_schema_and_linkage_even_on_error(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             os.environ["KB_ROOT"] = td
             cfg = load_config()
@@ -79,8 +87,44 @@ class ContractComplianceTests(unittest.TestCase):
 
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             latest = json.loads(latest_path.read_text(encoding="utf-8"))
+
+            self.assertEqual(manifest["manifest_version"], rr["schema_versions"]["manifest"])
             self.assertEqual(manifest["run_id"], rr["run_id"])
+            self.assertEqual(manifest["artifact_family"], "contract")
+            self.assertEqual(manifest["artifact_kind"], "manifest")
+            self.assertEqual(manifest["schema_version_emitted"], rr["schema_versions"]["manifest"])
+            self.assertEqual(manifest["producer"], "kb")
+            self.assertTrue(manifest["producer_version"])
+            self.assertEqual(manifest["status"], rr["status"])
+            self.assertIsInstance(manifest["artifacts"], list)
+            self.assertGreaterEqual(len(manifest["artifacts"]), 3)
+
+            artifact_by_kind = {a["artifact_kind"]: a for a in manifest["artifacts"]}
+            for required_kind in ["run_record", "manifest", "observability_latest"]:
+                self.assertIn(required_kind, artifact_by_kind)
+                self.assertIn("path", artifact_by_kind[required_kind])
+                self.assertIn("schema_version_emitted", artifact_by_kind[required_kind])
+                self.assertIn("artifact_family", artifact_by_kind[required_kind])
+                self.assertIn("promotion_status", artifact_by_kind[required_kind])
+
+            self.assertEqual(Path(artifact_by_kind["run_record"]["path"]), rr_path)
+            self.assertEqual(Path(artifact_by_kind["manifest"]["path"]), manifest_path)
+            self.assertEqual(Path(artifact_by_kind["observability_latest"]["path"]), latest_path)
+            self.assertIn("sha256", artifact_by_kind["run_record"])
+            self.assertIn("sha256", artifact_by_kind["observability_latest"])
+            self.assertEqual(artifact_by_kind["run_record"]["sha256"], self._sha256(rr_path))
+            self.assertEqual(artifact_by_kind["observability_latest"]["sha256"], self._sha256(latest_path))
+
+            self.assertEqual(latest["observability_version"], rr["schema_versions"]["observability"])
+            self.assertEqual(latest["artifact_family"], "module_observability")
+            self.assertEqual(latest["artifact_kind"], "module_latest")
+            self.assertEqual(latest["scope"], "module_local")
             self.assertEqual(latest["run_id"], rr["run_id"])
+            self.assertEqual(latest["entrypoint"], rr["entrypoint"])
+            self.assertEqual(latest["status"], rr["status"])
+            self.assertEqual(Path(latest["run_record_path"]), rr_path)
+            self.assertEqual(Path(latest["manifest_path"]), manifest_path)
+            self.assertEqual(latest["completed_at"], rr["completed_at"])
 
 
 if __name__ == "__main__":

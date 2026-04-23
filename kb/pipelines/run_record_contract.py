@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import platform
 import sys
@@ -12,10 +13,12 @@ from kb.config.kb_config import KBConfig
 
 RUN_RECORD_VERSION = 2
 PROJECT = "kb"
+PRODUCER = "kb"
+PRODUCER_VERSION = "0.1.0"
 SCHEMA_VERSIONS = {
     "run_record": 2,
-    "manifest": 1,
-    "observability": 1,
+    "manifest": 2,
+    "observability": 2,
 }
 CONTRACTUAL_STATUSES = {"success", "empty_success", "partial_success", "error"}
 
@@ -33,6 +36,16 @@ def write_json_atomic(path: Path, obj: Dict[str, Any]) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
     tmp.replace(path)
+
+
+def _maybe_sha256(path: Path) -> Optional[str]:
+    if not path.exists() or not path.is_file():
+        return None
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _normalize_stage_defs(stage_defs: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -174,6 +187,8 @@ def finalize_and_write_contract_artifacts(
     run_record["status"] = final_status
     run_record["completed_at"] = utc_now_iso()
     run_record.setdefault("outputs", {})["run_record_path"] = str(rr_path)
+
+    completion_ts = run_record.get("completed_at")
     add_output_artifact(
         run_record,
         path=rr_path,
@@ -188,35 +203,7 @@ def finalize_and_write_contract_artifacts(
     observability_dir.mkdir(parents=True, exist_ok=True)
 
     manifest_path = manifest_dir / f"{run_record['run_id']}.manifest.json"
-    manifest = {
-        "manifest_version": SCHEMA_VERSIONS["manifest"],
-        "run_id": run_record["run_id"],
-        "project": run_record["project"],
-        "entrypoint": run_record["entrypoint"],
-        "status": run_record["status"],
-        "created_at": run_record.get("created_at"),
-        "completed_at": run_record.get("completed_at"),
-        "artifacts": {
-            "run_record": str(rr_path),
-            "public_outputs": run_record.get("outputs", {}),
-        },
-    }
-    write_json_atomic(manifest_path, manifest)
-
     latest_path = observability_dir / f"{run_record['operator']}.latest.json"
-    latest = {
-        "observability_version": SCHEMA_VERSIONS["observability"],
-        "run_id": run_record["run_id"],
-        "project": run_record["project"],
-        "entrypoint": run_record["entrypoint"],
-        "operator": run_record["operator"],
-        "status": run_record["status"],
-        "created_at": run_record.get("created_at"),
-        "completed_at": run_record.get("completed_at"),
-        "run_record_path": str(rr_path),
-        "manifest_path": str(manifest_path),
-    }
-    write_json_atomic(latest_path, latest)
 
     run_record["outputs"].update(
         {
@@ -239,10 +226,58 @@ def finalize_and_write_contract_artifacts(
         schema_version=SCHEMA_VERSIONS["observability"],
     )
 
+    latest = {
+        "observability_version": SCHEMA_VERSIONS["observability"],
+        "artifact_family": "module_observability",
+        "artifact_kind": "module_latest",
+        "scope": "module_local",
+        "run_id": run_record["run_id"],
+        "project": run_record["project"],
+        "entrypoint": run_record["entrypoint"],
+        "operator": run_record["operator"],
+        "status": run_record["status"],
+        "run_record_path": str(rr_path),
+        "manifest_path": str(manifest_path),
+        "completed_at": completion_ts,
+    }
+    write_json_atomic(latest_path, latest)
+
     complete_stage(run_record, "contract_artifact_emission", success=True)
     try:
         write_json_atomic(rr_path, run_record)
     except Exception:
         pass
+
+    contract_artifacts: List[Dict[str, Any]] = []
+    for artifact in run_record.get("outputs", {}).get("artifacts", []):
+        artifact_path = Path(artifact["path"])
+        entry = {
+            "artifact_kind": artifact.get("artifact_kind"),
+            "artifact_family": artifact.get("artifact_family"),
+            "path": str(artifact_path),
+            "schema_version_emitted": artifact.get("schema_version"),
+            "promotion_status": artifact.get("promotion_status"),
+        }
+        checksum = _maybe_sha256(artifact_path)
+        if checksum and artifact.get("artifact_kind") != "manifest":
+            entry["sha256"] = checksum
+        contract_artifacts.append(entry)
+
+    manifest = {
+        "manifest_version": SCHEMA_VERSIONS["manifest"],
+        "run_id": run_record["run_id"],
+        "artifact_family": "contract",
+        "artifact_kind": "manifest",
+        "schema_version_emitted": SCHEMA_VERSIONS["manifest"],
+        "project": run_record["project"],
+        "entrypoint": run_record["entrypoint"],
+        "producer": PRODUCER,
+        "producer_version": PRODUCER_VERSION,
+        "status": run_record["status"],
+        "created_at": run_record.get("created_at"),
+        "completed_at": completion_ts,
+        "artifacts": contract_artifacts,
+    }
+    write_json_atomic(manifest_path, manifest)
 
     return {"manifest_path": str(manifest_path), "observability_latest_path": str(latest_path)}
