@@ -14,3 +14,9 @@
 - `kb_chat_ingest`: `--smoke` (canonical cheap smoke), `--dry-run` (dev parse+embed), `--reset-collection`, `--batch-size`
 - `kb_chat_analyze`: `--batch-size`, `--max-nodes`
 - `kb_papers_grobid`: `--no-post`, `--chroma-dir`, `--langchain`
+
+## Producer diagnostic
+
+- `python -m kb.cli.kb_verify_run <run_id> [--operator <identity>]` is the bounded,
+  offline, read-only verifier for existing producer evidence. It is a diagnostic
+  consumer, not a fourth product-producing seam.
