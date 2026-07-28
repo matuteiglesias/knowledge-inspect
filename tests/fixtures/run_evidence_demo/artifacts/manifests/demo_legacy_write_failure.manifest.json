@@ -1,0 +1,20 @@
+{
+  "artifacts": [
+    {
+      "artifact_kind": "run_record",
+      "path": "run_records/demo_legacy_write_failure.json"
+    },
+    {
+      "artifact_kind": "synthetic_payload",
+      "path": "payloads/demo_legacy_write_failure.json",
+      "sha256": "f44ca014bc82a175b2008be5e1f37eaf483315234c1b4606182bfa59a644d96a"
+    },
+    {
+      "artifact_kind": "observability_latest",
+      "path": "observability/kb.demo_legacy.latest.json",
+      "sha256": "278a04e7bad908e6ce36e2f17b5dc648c5f408b2381fec1d14580c7e52653dbf"
+    }
+  ],
+  "manifest_version": 2,
+  "run_id": "demo_legacy_write_failure"
+}

@@ -1,0 +1,7 @@
+{
+  "manifest_path": "manifests/demo_legacy_write_failure.manifest.json",
+  "observability_version": 2,
+  "operator": "kb.demo_legacy",
+  "run_id": "demo_legacy_write_failure",
+  "run_record_path": "run_records/demo_legacy_write_failure.json"
+}

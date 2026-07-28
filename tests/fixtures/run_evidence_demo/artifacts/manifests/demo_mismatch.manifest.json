@@ -1,0 +1,16 @@
+{
+  "artifacts": [
+    {
+      "artifact_kind": "run_record",
+      "path": "run_records/demo_mismatch.run_record.json",
+      "sha256": "af1721682c12a6938c31d3d343191980196409ef3c05a39d7dee96efde1e9639"
+    },
+    {
+      "artifact_kind": "synthetic_payload",
+      "path": "payloads/demo_mismatch.json",
+      "sha256": "51116e028168c6dcbe2d6ede07ad1df7421cc0808937b1d2bba601af189714ae"
+    }
+  ],
+  "manifest_version": 2,
+  "run_id": "demo_mismatch"
+}
