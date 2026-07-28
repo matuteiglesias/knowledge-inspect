@@ -10,12 +10,22 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from kb.pipelines.chat_analyze import analyze
 
 
 def _parse_args(argv):
     ap = argparse.ArgumentParser(prog="kb_chat_analyze")
+    ap.add_argument(
+        "--chunk-set",
+        type=Path,
+        default=None,
+        help=(
+            "Explicit chunk_set.v1 JSON path. Precedence: this path, then newest "
+            "artifacts/chunk_sets file by mtime, then Chroma."
+        ),
+    )
     ap.add_argument("--export-name", default="combined_notes.md", help="Filename in artifacts/exports/")
     ap.add_argument("--batch-size", type=int, default=500, help="Chroma get batch size")
     ap.add_argument("--max-nodes", type=int, default=None, help="Optional cap for analysis")
@@ -24,7 +34,12 @@ def _parse_args(argv):
 
 def main(argv=None) -> int:
     args = _parse_args(argv or sys.argv[1:])
-    res = analyze(export_name=args.export_name, batch_size=int(args.batch_size), max_nodes=args.max_nodes)
+    res = analyze(
+        chunk_set_path=args.chunk_set,
+        export_name=args.export_name,
+        batch_size=int(args.batch_size),
+        max_nodes=args.max_nodes,
+    )
     print(f"run_record: {res.run_record_path}")
     print(f"export: {res.export_path}")
     print(f"status: {res.run_record.get('status')}")
