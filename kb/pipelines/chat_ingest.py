@@ -128,10 +128,10 @@ def ingest_paths(
         smoke_preview: Dict[str, Any] = {"sample": []}
         run_record["mode"] = "smoke" if smoke else ("dry_run" if dry_run else "ingest")
 
-        pf = ProcessedFiles.open(cfg.cache_db)
         cached_embed = None
 
         if not smoke:
+            pf = ProcessedFiles.open(cfg.cache_db)
             from kb.storage.sqlite_cache import SQLiteVecCache
             from kb.vectorstore.chroma_client import ChromaConfig, get_collection
             from kb.vectorstore.chroma_io import add_nodes
@@ -183,7 +183,7 @@ def ingest_paths(
                 run_record["warnings"].append({"type": "missing_input", "path": str(p)})
                 continue
 
-            if pf.is_processed(p.name):
+            if pf is not None and pf.is_processed(p.name):
                 run_record["counters"]["files_skipped_processed"] += 1
                 continue
 
@@ -206,6 +206,9 @@ def ingest_paths(
                 canonical_chunks.append(
                     {
                         "chunk_id": uid,
+                        "chunk_index": len(canonical_chunks),
+                        "char_len": len(text),
+                        "document_id": p.name,
                         "source_file": p.name,
                         "header_path": header_path,
                         "text": text,

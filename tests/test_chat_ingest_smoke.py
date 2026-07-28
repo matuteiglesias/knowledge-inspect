@@ -8,8 +8,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kb.config.kb_config import load_config
+from kb.contracts.chunk_set import validate_chunk_set_dict
 from kb.pipelines.chat_ingest import ingest_paths
-from kb.storage.processed_files import ProcessedFiles
 
 
 class ChatIngestSmokeTests(unittest.TestCase):
@@ -64,6 +64,9 @@ class ChatIngestSmokeTests(unittest.TestCase):
                 self.assertIn("source_items", chunk_set)
                 self.assertIn("chunks", chunk_set)
                 self.assertIn("chunk_count", chunk_set)
+                validate_chunk_set_dict(chunk_set)
+                self.assertEqual(chunk_set["chunks"][0]["chunk_index"], 0)
+                self.assertEqual(chunk_set["chunks"][0]["char_len"], len(chunk_set["chunks"][0]["text"]))
 
                 manifest_path = Path(res.run_record["outputs"]["manifest_path"])
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -76,11 +79,7 @@ class ChatIngestSmokeTests(unittest.TestCase):
                 smoke_artifact = json.loads(smoke_artifact_path.read_text(encoding="utf-8"))
                 self.assertGreaterEqual(len(smoke_artifact.get("sample", [])), 1)
 
-                pf = ProcessedFiles.open(cfg.cache_db)
-                try:
-                    self.assertEqual(pf.all_processed(), [], "smoke should not mark processed files")
-                finally:
-                    pf.close()
+                self.assertFalse(cfg.cache_db.exists(), "smoke should not create or mutate the processed-file ledger")
 
                 self.assertEqual(int(res.run_record["counters"]["chroma_attempted"]), 0, "smoke should not write to chroma")
             finally:
