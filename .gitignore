@@ -3,5 +3,7 @@ artifacts/
 embedding_cache.sqlite
 store/
 test_data/
-tests/__pycache__/
-kb/cli/__pycache__
+
+# Python generates these caches locally; source is the distribution contract.
+__pycache__/
+*.py[cod]
