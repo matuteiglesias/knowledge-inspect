@@ -23,20 +23,20 @@ class ContractComplianceTests(unittest.TestCase):
         return digest.hexdigest()
 
     def test_canonical_entrypoints_note_contains_one_command_per_seam(self) -> None:
-        note = (ROOT / "notes" / "kb_entrypoints.md").read_text(encoding="utf-8")
+        note = (ROOT / "notes/kb_entrypoints.md").read_text(encoding="utf-8")
         self.assertIn("python -m kb.cli.kb_chat_ingest", note)
         self.assertIn("python -m kb.cli.kb_chat_analyze", note)
         self.assertIn("python -m kb.cli.kb_papers_grobid", note)
 
     def test_health_contract_documents_smoke_vs_real_ingest(self) -> None:
-        note = (ROOT / "notes" / "kb_health_contract.md").read_text(encoding="utf-8")
+        note = (ROOT / "notes/kb_health_contract.md").read_text(encoding="utf-8")
         self.assertIn("Cheap smoke", note)
         self.assertIn("Real ingest", note)
         self.assertIn("--smoke", note)
         self.assertIn("--dry-run", note)
 
     def test_bus_role_decision_note_exists_and_declares_seam_roles(self) -> None:
-        note = (ROOT / "notes" / "kb_bus_role_decision.md").read_text(encoding="utf-8")
+        note = (ROOT / "notes/kb_bus_role_decision.md").read_text(encoding="utf-8")
         self.assertIn("kb_chat_ingest", note)
         self.assertIn("consumer + producer", note)
         self.assertIn("chunk_set", note)
