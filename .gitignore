@@ -1,0 +1,7 @@
+.env
+artifacts/
+embedding_cache.sqlite
+store/
+test_data/
+tests/__pycache__/
+kb/cli/__pycache__
