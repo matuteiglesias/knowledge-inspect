@@ -1,0 +1,17 @@
+{
+  "fixture_version": 1,
+  "scope": "PR 2 / Task 2A characterization only",
+  "states": {
+    "successful_run": ["complete_evidence"],
+    "empty_success_run": ["complete_evidence"],
+    "partial_success_run": ["complete_evidence"],
+    "error_run": ["complete_evidence"],
+    "missing_payload_member": ["incomplete_evidence", "missing_member"],
+    "altered_payload_member": ["proven_checksum_mismatch"],
+    "malformed_bundle_member": ["structurally_invalid_evidence"],
+    "latest_missing_run_record": ["incomplete_evidence", "missing_member", "stale_latest_pointer"],
+    "latest_missing_bundle": ["incomplete_evidence", "missing_member", "stale_latest_pointer"],
+    "current_run_record_checksum_ordering": ["complete_evidence"],
+    "finalizer_run_record_write_failure": ["known_legacy_limitation", "incomplete_evidence", "missing_member", "stale_latest_pointer"]
+  }
+}
