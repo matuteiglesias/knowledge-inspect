@@ -20,6 +20,29 @@ Final persisted run statuses are only:
 - Real ingest: same command without `--smoke`
 - Dev/debug dry-run: `python -m kb.cli.kb_chat_ingest --paths <...> --dry-run`
 
+## Chat-analysis input selection
+
+Use `python -m kb.cli.kb_chat_analyze --chunk-set <path>` to analyze an explicit
+`chunk_set.v1` JSON file. Explicit files are contract-validated and fail closed:
+an invalid explicit path or payload does not silently select another input.
+
+Without `--chunk-set`, compatibility discovery is unchanged. Analysis selects the
+newest direct `artifacts/chunk_sets/*.chunk_set.json` child by filesystem mtime,
+or uses the configured Chroma collection when no matching chunk set exists. No
+fallback is deprecated. Relative explicit paths are interpreted from the process
+working directory after `~` expansion; absolute paths are accepted.
+
+Inspect `inputs.selection_mode` in the producer-owned run record to distinguish:
+
+| Value | Meaning |
+|---|---|
+| `explicit_chunk_set` | the operator supplied `--chunk-set` |
+| `legacy_mtime_chunk_set` | legacy newest-by-mtime discovery selected a file |
+| `chroma_fallback` | no implicit chunk set existed, so analysis used Chroma |
+
+This additive field describes `kb.chat_analyze` behavior only. It is not a shared
+contract or a Profile 2 compliance claim.
+
 ## Outputs to inspect first
 1. `artifacts/observability/<operator>.latest.json`
 2. `artifacts/run_records/<run_id>.run_record.json`

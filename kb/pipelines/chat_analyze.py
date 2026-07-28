@@ -8,6 +8,7 @@ import traceback
 import json
 
 from kb.config.kb_config import KBConfig, load_config
+from kb.contracts.chunk_set import validate_chunk_set_file
 from kb.pipelines.run_record_contract import (
     add_output_artifact,
     attach_exception,
@@ -41,6 +42,7 @@ class AnalyzeResult:
 def analyze(
     *,
     cfg: Optional[KBConfig] = None,
+    chunk_set_path: str | Path | None = None,
     export_name: str = "combined_notes.md",
     batch_size: int = 500,
     max_nodes: int | None = None,
@@ -82,9 +84,18 @@ def analyze(
         complete_stage(run_record, "input_resolution", success=True)
         complete_stage(run_record, "parse", success=True, details={"state": "started"})
 
-        chunk_set_path = _latest_chunk_set_path(cfg)
-        if chunk_set_path is not None:
-            chunk_set = json.loads(chunk_set_path.read_text(encoding="utf-8"))
+        selected_chunk_set_path = (
+            Path(chunk_set_path).expanduser() if chunk_set_path is not None else _latest_chunk_set_path(cfg)
+        )
+        if selected_chunk_set_path is not None:
+            run_record["inputs"]["selection_mode"] = (
+                "explicit_chunk_set" if chunk_set_path is not None else "legacy_mtime_chunk_set"
+            )
+            chunk_set = (
+                validate_chunk_set_file(selected_chunk_set_path)
+                if chunk_set_path is not None
+                else json.loads(selected_chunk_set_path.read_text(encoding="utf-8"))
+            )
             chunks = list(chunk_set.get("chunks", []))
             if max_nodes is not None:
                 chunks = chunks[: int(max_nodes)]
@@ -92,14 +103,21 @@ def analyze(
             run_record["inputs"]["items"].append(
                 {
                     "input_kind": "chunk_set",
-                    "path": str(chunk_set_path),
+                    "path": str(selected_chunk_set_path),
                     "artifact_family": chunk_set.get("artifact_family"),
                     "artifact_kind": chunk_set.get("artifact_kind"),
                     "run_id": chunk_set.get("run_id"),
                 }
             )
-            input_artifacts.append({"path": str(chunk_set_path), "artifact_kind": "chunk_set", "artifact_family": "chunk_bus"})
+            input_artifacts.append(
+                {
+                    "path": str(selected_chunk_set_path),
+                    "artifact_kind": "chunk_set",
+                    "artifact_family": "chunk_bus",
+                }
+            )
         else:
+            run_record["inputs"]["selection_mode"] = "chroma_fallback"
             from kb.vectorstore.chroma_client import ChromaConfig, get_collection
             from kb.vectorstore.chroma_io import load_vectors_and_min_nodes
 
@@ -120,7 +138,7 @@ def analyze(
             combined = "# combined_notes\n\n(no nodes in collection)\n"
             _write_text_atomic(export_path, combined)
         else:
-            if chunk_set_path is not None:
+            if selected_chunk_set_path is not None:
                 order = list(range(len(nodes)))
             else:
                 from scipy.cluster.hierarchy import leaves_list, linkage
