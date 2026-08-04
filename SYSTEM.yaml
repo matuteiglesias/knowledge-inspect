@@ -1,0 +1,47 @@
+# This file declares the repository boundary and its place in the GitHub estate.
+schema_version: 1
+id: kb.inspect.runtime
+repository:
+  id: repo.knowledge-inspect
+  github: matuteiglesias/knowledge-inspect
+domain: knowledge
+system: kb.inspect
+role: inspection-producer
+lifecycle: active
+authority:
+  status: proposed
+  owns:
+  - knowledge-store selection and inspection
+  - run manifests and evidence of selection
+  - bounded analysis outputs
+  does_not_own:
+  - source paper parsing
+  - shared schema authority
+  - MCP transport policy
+interfaces:
+  consumes:
+  - contract:kb.chunk-set@1
+  - artifact:kb.paper-chunk-set@1
+  produces:
+  - artifact:kb.run-manifest@1
+  - artifact:kb.summary-bus@1
+upstream:
+- repo.kb-contracts
+- repo.knowledge-base-app
+downstream:
+- repo.context
+- repo.gpt-digests
+- repo.matias-context-mcp
+canonical_commands: []
+generated_paths:
+- runs/
+- artifacts/
+verification:
+  status: metadata-only
+  last_verified: '2026-08-04'
+  command: null
+  unknowns:
+  - canonical CLI and generated paths require local confirmation
+maintenance:
+  cadence: quarterly
+  next_review: '2026-11-01'
