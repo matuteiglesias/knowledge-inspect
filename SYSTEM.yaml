@@ -19,6 +19,7 @@ authority:
   - shared schema authority
   - evidence promotion authority
   - context routing
+  - downstream JSONL evidence adaptation
   - MCP transport policy
 interfaces:
   consumes:
@@ -31,7 +32,6 @@ upstream:
 - repo.kb-contracts
 - repo.paper-kb
 downstream:
-- repo.kb-artifacts
 - repo.context-routing
 - repo.matias-context-mcp
 canonical_commands:
@@ -47,7 +47,8 @@ verification:
   command: make verify-run-evidence-demo
   unknowns:
   - canonical commands were reconciled against AGENTS.md and Makefile but not executed during W2
-  - exact downstream interface compatibility remains an interface-proof task for W3
+  - W3 proved paper-kb chunk_set input compatibility but found no direct current Knowledge Inspect -> KB Artifacts handoff
+  - exact remaining downstream interface compatibility remains an interface-proof task for W3
 maintenance:
   cadence: quarterly
   next_review: '2026-11-01'
