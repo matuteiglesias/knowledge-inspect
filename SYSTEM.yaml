@@ -17,6 +17,8 @@ authority:
   does_not_own:
   - source paper parsing
   - shared schema authority
+  - evidence promotion authority
+  - context routing
   - MCP transport policy
 interfaces:
   consumes:
@@ -27,21 +29,25 @@ interfaces:
   - artifact:kb.summary-bus@1
 upstream:
 - repo.kb-contracts
-- repo.knowledge-base-app
+- repo.paper-kb
 downstream:
-- repo.context
-- repo.gpt-digests
+- repo.kb-artifacts
+- repo.context-routing
 - repo.matias-context-mcp
-canonical_commands: []
+canonical_commands:
+- make health
+- make smoke
+- make verify-run-evidence-demo
 generated_paths:
 - runs/
 - artifacts/
 verification:
   status: metadata-only
-  last_verified: '2026-08-04'
-  command: null
+  last_verified: '2026-08-28'
+  command: make verify-run-evidence-demo
   unknowns:
-  - canonical CLI and generated paths require local confirmation
+  - canonical commands were reconciled against AGENTS.md and Makefile but not executed during W2
+  - exact downstream interface compatibility remains an interface-proof task for W3
 maintenance:
   cadence: quarterly
   next_review: '2026-11-01'
