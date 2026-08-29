@@ -23,7 +23,6 @@ authority:
   - MCP transport policy
 interfaces:
   consumes:
-  - contract:kb.chunk-set@1
   - artifact:kb.paper-chunk-set@1
   produces:
   - artifact:kb.run-manifest@1
@@ -42,13 +41,14 @@ generated_paths:
 - runs/
 - artifacts/
 verification:
-  status: metadata-only
-  last_verified: '2026-08-28'
+  status: bounded-interface-proofs
+  last_verified: '2026-08-29'
   command: make verify-run-evidence-demo
+  proven:
+  - Paper KB producer-owned chunk_set artifacts validate through the real Knowledge Inspect consumer CLI in cross-repo CI
   unknowns:
-  - canonical commands were reconciled against AGENTS.md and Makefile but not executed during W2
-  - W3 proved paper-kb chunk_set input compatibility but found no direct current Knowledge Inspect -> KB Artifacts handoff
-  - exact remaining downstream interface compatibility remains an interface-proof task for W3
+  - W3 found no direct current Knowledge Inspect -> KB Artifacts handoff
+  - exact remaining downstream interface compatibility remains an independent proof task
 maintenance:
   cadence: quarterly
   next_review: '2026-11-01'
