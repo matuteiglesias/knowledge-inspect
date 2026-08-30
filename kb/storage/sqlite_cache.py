@@ -1,16 +1,18 @@
 """
 sqlite_cache.py
 
-Embedding cache: (id -> vector) stored in SQLite.
+Embedding cache stored in SQLite.
 Separated from processed-files state (see processed_files.py).
 
-Inspired by the simple cached_embed pattern used in your dev scripts:
-- "vecs" table with (id, dim, blob) fileciteturn2file10L36-L44
-- frequent commits so Ctrl+C doesn't lose work fileciteturn2file10L41-L44
+The table remains intentionally generic.  Callers that produce semantic
+representations must namespace cache entries by representation identity so a
+logical chunk can have multiple valid model/config-specific vectors.
 
 Notes:
 - We store float32 bytes in little-endian (NumPy default).
-- Dimension is stored per row; you can optionally assert expected dim.
+- Dimension is stored per row; callers can optionally assert expected dim.
+- `representation_id=None` preserves the legacy direct-ID behavior for callers
+  that have not yet migrated; the sanctioned chat-ingest path supplies one.
 """
 from __future__ import annotations
 
@@ -69,22 +71,34 @@ class SQLiteVecCache:
         embed_fn: Callable[[str], np.ndarray],
         *,
         expected_dim: int | None = None,
+        representation_id: str | None = None,
     ) -> Callable[[str, str], np.ndarray]:
+        """Wrap ``text -> vector`` into a representation-aware cached embedder.
+
+        ``text_id`` is the logical knowledge-unit identity.  When
+        ``representation_id`` is supplied, SQLite state is keyed by the pair
+        without altering the caller-visible logical ID.
         """
-        Wrap a pure embedding function (text -> vec) into a cached_embed(text_id, text) callable.
-        """
+
         def cached_embed(text_id: str, text: str) -> np.ndarray:
-            cached = self.get(text_id)
+            cache_id = f"{representation_id}:{text_id}" if representation_id else text_id
+            cached = self.get(cache_id)
             if cached is not None:
                 if expected_dim is not None and int(cached.size) != int(expected_dim):
-                    raise ValueError(f"Cached vec dim mismatch for id={text_id}: got={cached.size} expected={expected_dim}")
+                    raise ValueError(
+                        f"Cached vec dim mismatch for id={text_id}: "
+                        f"got={cached.size} expected={expected_dim}"
+                    )
                 return cached
 
             vec = np.asarray(embed_fn(text), dtype=np.float32).reshape((-1,))
             if expected_dim is not None and int(vec.size) != int(expected_dim):
-                raise ValueError(f"Embed vec dim mismatch for id={text_id}: got={vec.size} expected={expected_dim}")
+                raise ValueError(
+                    f"Embed vec dim mismatch for id={text_id}: "
+                    f"got={vec.size} expected={expected_dim}"
+                )
 
-            self.put(text_id, vec)
+            self.put(cache_id, vec)
             return vec
 
         return cached_embed

@@ -1,0 +1,23 @@
+name: w3-semantic-runtime
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install bounded test dependency
+        run: python -m pip install --disable-pip-version-check 'numpy>=1.26,<3'
+      - name: Compile health
+        run: make health
+      - name: Provider-independent smoke
+        run: make smoke
+      - name: Representation identity proofs
+        run: python -m unittest -v tests.test_semantic_representation_identity tests.test_chat_ingest_smoke

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import chromadb
 from chromadb.config import Settings
@@ -39,25 +39,42 @@ def _make_client(cfg: ChromaConfig):
     return chromadb.PersistentClient(path=path, settings=settings)
 
 
+def _collection_names(client: Any) -> set[str]:
+    names: set[str] = set()
+    for item in client.list_collections():
+        name = getattr(item, "name", None)
+        if name is None and isinstance(item, str):
+            name = item
+        if name:
+            names.add(str(name))
+    return names
+
+
 def get_collection(
     cfg: ChromaConfig,
     *,
     embedding_function: Optional[Any] = None,
+    metadata: Optional[Dict[str, Any]] = None,
     reset: bool = False,
 ) -> Tuple[Any, Any]:
-    """
-    Returns (client, collection).
+    """Return ``(client, collection)`` for one private derivative collection.
+
+    ``reset=True`` is intentionally collection-scoped.  The old implementation
+    called ``client.reset()``, which cleared every collection in the Chroma
+    client even though the CLI contract says "reset collection".  W3 keeps
+    unrelated derivative representations intact.
     """
     client = _make_client(cfg)
 
     if reset:
         if not cfg.allow_reset:
             raise ValueError("reset=True requested but allow_reset=False in ChromaConfig")
-        # Public API: reset clears all collections in this client
-        client.reset()
+        if cfg.collection_name in _collection_names(client):
+            client.delete_collection(name=cfg.collection_name)
 
     coll = client.get_or_create_collection(
         name=cfg.collection_name,
         embedding_function=embedding_function,
+        metadata=metadata,
     )
     return client, coll
