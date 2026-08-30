@@ -50,13 +50,13 @@ Those machine-local checks remain an explicit archive-readiness blocker.
 W4 changes its authority status instead of pretending the code does not exist:
 
 - CLI invocation emits an explicit deprecation/source-boundary warning;
-- run evidence records `source_authority_status = legacy_compatibility_non_authoritative`;
+- run configuration records `source_authority_status = legacy_compatibility_non_authoritative`;
 - the run warning list contains a structured `legacy_source_seam` warning;
-- manifest evidence for the emitted compatibility chunk set carries the same status;
+- run output/internal-side-effect evidence repeats the same non-authoritative status;
 - `AGENTS.md` forbids treating the path as a new source-authority seam;
 - `SYSTEM.yaml` explicitly says Knowledge Inspect does not own raw chat/day-file source interpretation or universal ingestion authority.
 
-Historical compatibility artifacts are still structurally valid. That validity does not promote their parser into a current architectural authority.
+Historical compatibility artifacts are still structurally valid. That validity does not promote their parser into a current architectural authority. W4 deliberately does not broaden the shared manifest schema merely to carry predecessor migration metadata.
 
 ## Canonical smoke moves to governed input
 
