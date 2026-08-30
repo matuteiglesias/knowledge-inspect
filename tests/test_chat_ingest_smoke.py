@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from kb.config.kb_config import load_config
 from kb.contracts.chunk_set import validate_chunk_set_dict
-from kb.pipelines.chat_ingest import ingest_paths
+from kb.pipelines.chat_ingest import LEGACY_SOURCE_STATUS, ingest_paths
 
 
 class ChatIngestSmokeTests(unittest.TestCase):
@@ -43,6 +43,17 @@ class ChatIngestSmokeTests(unittest.TestCase):
 
                 self.assertEqual(res.run_record["status"], "success")
                 self.assertEqual(res.run_record.get("entrypoint"), "kb_chat_ingest")
+                self.assertEqual(
+                    res.run_record["config"]["source_authority_status"],
+                    LEGACY_SOURCE_STATUS,
+                )
+                legacy_warnings = [
+                    warning
+                    for warning in res.run_record.get("warnings", [])
+                    if warning.get("type") == "legacy_source_seam"
+                ]
+                self.assertEqual(len(legacy_warnings), 1)
+                self.assertEqual(legacy_warnings[0]["status"], LEGACY_SOURCE_STATUS)
                 self.assertIn("created_at", res.run_record)
                 self.assertIn("completed_at", res.run_record)
                 self.assertIn("smoke_artifact_path", res.run_record.get("outputs", {}))
@@ -73,6 +84,10 @@ class ChatIngestSmokeTests(unittest.TestCase):
                 artifact_by_kind = {a["artifact_kind"]: a for a in manifest["artifacts"]}
                 self.assertIn("chunk_set", artifact_by_kind)
                 self.assertEqual(Path(artifact_by_kind["chunk_set"]["path"]), chunk_set_path)
+                self.assertEqual(
+                    artifact_by_kind["chunk_set"]["source_authority_status"],
+                    LEGACY_SOURCE_STATUS,
+                )
 
                 smoke_artifact_path = Path(res.run_record["outputs"]["smoke_artifact_path"])
                 self.assertTrue(smoke_artifact_path.exists(), "smoke artifact should exist")
