@@ -57,7 +57,11 @@ def _membership_evidence(ids: list[str | None], *, ordered: bool = False) -> Dic
     identified = [value for value in ids if value is not None]
     complete = len(identified) == len(ids)
     canonical = identified if ordered else sorted(identified)
-    digest = hashlib.sha256("\n".join(canonical).encode("utf-8")).hexdigest() if complete else None
+    digest = (
+        hashlib.sha256("\n".join(canonical).encode("utf-8")).hexdigest()
+        if complete
+        else None
+    )
     return {
         "member_count": len(ids),
         "identified_member_count": len(identified),
@@ -156,6 +160,7 @@ def analyze(
                 )
 
             source_sha256 = _sha256_file(selected_chunk_set_path)
+            # Preserve the established input-item shape; W3 evidence is additive.
             run_record["inputs"]["items"].append(
                 {
                     "input_kind": "chunk_set",
@@ -163,10 +168,12 @@ def analyze(
                     "artifact_family": chunk_set.get("artifact_family"),
                     "artifact_kind": chunk_set.get("artifact_kind"),
                     "run_id": chunk_set.get("run_id"),
-                    "sha256": source_sha256,
-                    **membership,
                 }
             )
+            run_record["inputs"]["artifact_evidence"] = {
+                "sha256": source_sha256,
+                **membership,
+            }
             input_artifacts.append(
                 {
                     "path": str(selected_chunk_set_path),
@@ -216,15 +223,16 @@ def analyze(
                     }
                 )
 
+            # Preserve the established collection input item for compatibility;
+            # semantic derivative identity lives in explicit additive evidence.
             run_record["inputs"]["items"].append(
-                {
-                    "input_kind": "collection",
-                    "collection": cfg.collection_name,
-                    "resolved_collection": resolved_collection,
-                    "embedding_representation_id": representation_id,
-                    **membership,
-                }
+                {"input_kind": "collection", "collection": cfg.collection_name}
             )
+            run_record["inputs"]["semantic_evidence"] = {
+                "resolved_collection": resolved_collection,
+                "embedding_representation_id": representation_id,
+                **membership,
+            }
             input_artifacts.append(
                 {
                     "collection": cfg.collection_name,
@@ -253,7 +261,9 @@ def analyze(
 
         if len(nodes) == 0:
             order: list[int] = []
-            ordering_mode = "empty_input" if selected_chunk_set_path is not None else "empty_collection"
+            ordering_mode = (
+                "empty_input" if selected_chunk_set_path is not None else "empty_collection"
+            )
             combined = "# combined_notes\n\n(no nodes in collection)\n"
             _write_text_atomic(export_path, combined)
         else:
@@ -285,7 +295,11 @@ def analyze(
                 else:
                     hdr = (n.metadata or {}).get("header_path")
                     text = n.text
-                hdr_str = "/".join(hdr) if isinstance(hdr, list) else (str(hdr) if hdr else "")
+                hdr_str = (
+                    "/".join(hdr)
+                    if isinstance(hdr, list)
+                    else (str(hdr) if hdr else "")
+                )
                 parts.append("\n---\n")
                 if hdr_str:
                     parts.append(f"## {hdr_str}\n")
@@ -378,4 +392,8 @@ def analyze(
             requested_status=requested_status,
         )
 
-    return AnalyzeResult(run_record_path=rr_path, export_path=export_path, run_record=run_record)
+    return AnalyzeResult(
+        run_record_path=rr_path,
+        export_path=export_path,
+        run_record=run_record,
+    )
