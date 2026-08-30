@@ -17,6 +17,8 @@ authority:
   - bounded analysis outputs
   does_not_own:
   - source paper parsing
+  - raw chat/day-file source interpretation
+  - universal source-ingestion authority
   - shared schema authority
   - evidence promotion authority
   - context routing
@@ -46,9 +48,11 @@ generated_paths:
 verification:
   status: bounded-interface-proofs
   last_verified: '2026-08-30'
-  command: make verify-run-evidence-demo; make verify-semantic-runtime
+  command: make smoke; make verify-run-evidence-demo; make verify-semantic-runtime
   proven:
   - Paper KB producer-owned chunk_set artifacts validate through the real Knowledge Inspect consumer CLI in cross-repo CI
+  - canonical smoke begins from a sanitized producer-owned governed chunk_set fixture rather than raw chat/day-file parsing
+  - the retained kb_chat_ingest path is explicitly legacy compatibility and records non-authoritative source status in run evidence
   - embedding cache, processed-state, and Chroma derivative identity are representation-aware while logical chunk identity remains stable
   - a sanitized governed fixture can be indexed, directly queried, target-reset, rebuilt, and queried again with stable logical membership while unrelated Chroma state survives
   - governed chunk_set analysis records no false vector/retrieval/clustering use, while Chroma fallback records the resolved embedding representation and membership/result identity
