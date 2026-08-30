@@ -1,6 +1,6 @@
 # Textflow W4 — ingestion ownership resolution
 
-Status: **implementation-complete pending branch verification**.
+Status: **complete; W4 gate passed on 2026-08-30**.
 
 W4 resolves one predecessor question: where should Textflow's historical JSONL/chat/day-file ingestion live in the mature knowledge ecosystem?
 
@@ -87,7 +87,9 @@ If a concrete current consumer later requires governed chat history, the pull co
 
 ## W4 gate
 
-W4 passes when:
+**PASS — 2026-08-30.** The corrected branch head passed both `w4-ingestion-ownership` and the full W3 semantic-runtime regression workflow.
+
+The accepted gate proves that:
 
 - canonical Knowledge Inspect smoke begins from a governed producer artifact;
 - raw chat/day-file interpretation is not declared as Knowledge Inspect authority;
