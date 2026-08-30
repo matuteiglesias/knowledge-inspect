@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import tempfile
 import unittest
@@ -21,7 +20,7 @@ def _sha256(path: Path) -> str:
 
 
 class W4GovernedSmokeTests(unittest.TestCase):
-    def test_governed_fixture_is_valid_and_analysis_does_not_use_source_parsing_or_vectors(self) -> None:
+    def test_governed_fixture_is_valid_and_analysis_bypasses_source_parsing_and_vectors(self) -> None:
         before = _sha256(FIXTURE)
         payload = validate_chunk_set_file(FIXTURE)
         self.assertEqual(payload["producer"], "fixture.source-owner")
@@ -38,13 +37,19 @@ class W4GovernedSmokeTests(unittest.TestCase):
 
         self.assertEqual(result.run_record["status"], "success")
         self.assertEqual(result.run_record["inputs"]["selection_mode"], "explicit_chunk_set")
-        semantic = result.run_record["inputs"]["semantic_operation"]
-        self.assertFalse(semantic["vector_store"]["used"])
+
+        semantic = result.run_record["config"]["semantic_runtime"]
+        self.assertFalse(semantic["used"])
+        self.assertEqual(semantic["operation"], "governed_chunk_set_order")
         self.assertFalse(semantic["retrieval"]["used"])
-        self.assertFalse(semantic["clustering"]["used"])
-        self.assertEqual(semantic["ordering"]["mode"], "governed_chunk_set_order")
+
+        side_effects = result.run_record["outputs"]["internal_side_effects"]
+        self.assertFalse(side_effects["vector_store_used"])
+        self.assertEqual(side_effects["clustering_ordering"], "not_used")
+        self.assertEqual(side_effects["ordering_mode"], "chunk_set_order")
+
         self.assertEqual(
-            result.run_record["outputs"]["result_membership"]["member_id_sample"],
+            result.run_record["outputs"]["result_identity"]["member_id_sample"],
             ["fixture-governed-smoke-chunk-1"],
         )
         self.assertEqual(_sha256(FIXTURE), before, "canonical smoke must not mutate governed input")
