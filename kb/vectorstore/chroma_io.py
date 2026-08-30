@@ -3,16 +3,14 @@ chroma_io.py
 
 Batch I/O helpers for Chroma collections.
 
-Your drafts had:
-- idempotent add with IDAlreadyExists handling fileciteturn2file3L8-L15
-- batched get with offset/limit to load all embeddings fileciteturn2file7L19-L49
-
-This module standardizes both patterns.
+This module treats Chroma records as private derivative state. Logical IDs are
+preserved when records are loaded so analysis/run evidence can identify the
+actual governed knowledge units represented by a collection.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import chromadb
@@ -35,20 +33,13 @@ def add_nodes(
     metadatas: Optional[Sequence[Dict[str, Any]]] = None,
     idempotent: bool = True,
 ) -> ChromaAddResult:
-    """
-    Add records to a Chroma collection.
-
-    Strategy:
-    - If idempotent: attempt bulk add; if it fails due to existing IDs,
-      fall back to per-id add and count skips.
-    """
+    """Add records to a Chroma collection with bounded idempotent fallback."""
     attempted = len(ids)
     if not (len(embeddings) == len(documents) == attempted):
         raise ValueError("ids/embeddings/documents length mismatch")
     if metadatas is not None and len(metadatas) != attempted:
         raise ValueError("metadatas length mismatch")
 
-    # Normalize embeddings to list[ list[float] ]
     emb_list: List[List[float]] = []
     for e in embeddings:
         arr = np.asarray(e, dtype=np.float32).reshape((-1,))
@@ -59,13 +50,17 @@ def add_nodes(
     errors = 0
 
     try:
-        coll.add(ids=list(ids), embeddings=emb_list, documents=list(documents), metadatas=list(metadatas) if metadatas is not None else None)
+        coll.add(
+            ids=list(ids),
+            embeddings=emb_list,
+            documents=list(documents),
+            metadatas=list(metadatas) if metadatas is not None else None,
+        )
         return ChromaAddResult(attempted=attempted, added=attempted, skipped_existing=0, errors=0)
     except Exception:
         if not idempotent:
             raise
 
-    # Per-item fallback (keeps idempotency)
     for i, uid in enumerate(ids):
         try:
             coll.add(
@@ -89,10 +84,7 @@ def get_all_batched(
     include: Sequence[str] = ("embeddings", "documents", "metadatas"),
     batch_size: int = 500,
 ) -> Dict[str, Any]:
-    """
-    Fetch *all* records from collection using offset/limit batching.
-    Mirrors your dev8 approach fileciteturn2file7L19-L49, but returns raw Chroma dict.
-    """
+    """Fetch all records from one collection using offset/limit batching."""
     out_ids: List[str] = []
     out_docs: List[str] = []
     out_embs: List[Any] = []
@@ -110,7 +102,9 @@ def get_all_batched(
         if "documents" in include:
             out_docs.extend(docs)
         if "embeddings" in include:
-            out_embs.extend(data.get("embeddings") or [])
+            raw_embs = data.get("embeddings")
+            if raw_embs is not None:
+                out_embs.extend(list(raw_embs))
         if "metadatas" in include:
             out_metas.extend(data.get("metadatas") or [])
 
@@ -132,15 +126,26 @@ def load_vectors_and_min_nodes(
     batch_size: int = 500,
     header_path_key: str = "header_path",
 ) -> Tuple[np.ndarray, list]:
-    """
-    Convenience: return (vecs, nodes) where nodes are minimal objects compatible with your clustering drafts.
-    Similar to dev8.SimpleNamespace wrapper fileciteturn2file7L39-L45.
-    """
+    """Return vectors and minimal nodes while preserving logical Chroma IDs."""
     from types import SimpleNamespace
 
-    data = get_all_batched(coll, include=("embeddings", "documents", "metadatas"), batch_size=batch_size)
+    data = get_all_batched(
+        coll,
+        include=("embeddings", "documents", "metadatas"),
+        batch_size=batch_size,
+    )
     embs = np.asarray(data.get("embeddings") or [], dtype=np.float32)
     nodes = []
-    for doc, meta in zip(data.get("documents") or [], data.get("metadatas") or []):
-        nodes.append(SimpleNamespace(text=doc, metadata={header_path_key: meta.get(header_path_key)}))
+    for uid, doc, meta in zip(
+        data.get("ids") or [],
+        data.get("documents") or [],
+        data.get("metadatas") or [],
+    ):
+        nodes.append(
+            SimpleNamespace(
+                node_id=str(uid),
+                text=doc,
+                metadata={header_path_key: meta.get(header_path_key)},
+            )
+        )
     return embs, nodes

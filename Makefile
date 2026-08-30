@@ -7,6 +7,17 @@ smoke:
 inspect-last:
 	ls -lt artifacts/run_records artifacts/chunk_sets artifacts/exports | head -40
 
+# Provider-independent W3 semantic-runtime proof.
+# Requires numpy + chromadb; no embedding-provider credentials or network calls
+# are used by the tests themselves.
+verify-semantic-runtime:
+	python3 -m unittest -v \
+		tests.test_semantic_representation_identity \
+		tests.test_chat_ingest_smoke \
+		tests.test_vectorstore_rebuildability \
+		tests.test_semantic_run_evidence \
+		tests.test_chat_analyze_input_discovery
+
 # Reproducible Task 2C operator evidence. The expected nonzero verifier results
 # are asserted rather than hidden, and the fixture-tree digest proves no mutation.
 verify-run-evidence-demo:
