@@ -12,6 +12,7 @@ authority:
   status: proposed
   owns:
   - knowledge-store selection and inspection
+  - semantic representation derivative state used by inspection
   - run manifests and evidence of selection
   - bounded analysis outputs
   does_not_own:
@@ -21,6 +22,7 @@ authority:
   - context routing
   - downstream JSONL evidence adaptation
   - MCP transport policy
+  - universal retrieval or reranking architecture
 interfaces:
   consumes:
   - artifact:kb.paper-chunk-set@1
@@ -37,15 +39,20 @@ canonical_commands:
 - make health
 - make smoke
 - make verify-run-evidence-demo
+- make verify-semantic-runtime
 generated_paths:
 - runs/
 - artifacts/
 verification:
   status: bounded-interface-proofs
-  last_verified: '2026-08-29'
-  command: make verify-run-evidence-demo
+  last_verified: '2026-08-30'
+  command: make verify-run-evidence-demo; make verify-semantic-runtime
   proven:
   - Paper KB producer-owned chunk_set artifacts validate through the real Knowledge Inspect consumer CLI in cross-repo CI
+  - embedding cache, processed-state, and Chroma derivative identity are representation-aware while logical chunk identity remains stable
+  - a sanitized governed fixture can be indexed, directly queried, target-reset, rebuilt, and queried again with stable logical membership while unrelated Chroma state survives
+  - governed chunk_set analysis records no false vector/retrieval/clustering use, while Chroma fallback records the resolved embedding representation and membership/result identity
+  - current public analyze surfaces do not expose query/top_k/cutoff/reranking/filter semantics; those remain unclaimed until a real retrieval consumer exists
   unknowns:
   - W3 found no direct current Knowledge Inspect -> KB Artifacts handoff
   - exact remaining downstream interface compatibility remains an independent proof task
