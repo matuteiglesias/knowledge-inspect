@@ -1,15 +1,21 @@
 health:
 	python3 -m compileall . -q
 
+# Canonical smoke begins from an approved producer-owned artifact. It must not
+# make raw chat/day-file parsing a Knowledge Inspect source-authority seam.
 smoke:
-	python3 -m kb.cli.kb_chat_ingest --paths tests/fixtures/smoke_chat.jsonl --smoke
+	@set -eu; \
+	fixture="$(CURDIR)/tests/fixtures/governed_smoke.chunk_set.json"; \
+	tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
+	python3 -m kb.cli.kb_validate_chunk_set "$$fixture" --format text; \
+	KB_ROOT="$$tmp" python3 -m kb.cli.kb_chat_analyze --chunk-set "$$fixture" --export-name smoke.md
 
 inspect-last:
 	ls -lt artifacts/run_records artifacts/chunk_sets artifacts/exports | head -40
 
-# Provider-independent W3 semantic-runtime proof.
-# Requires numpy + chromadb; no embedding-provider credentials or network calls
-# are used by the tests themselves.
+# Provider-independent W3 semantic-runtime regression proof. The raw-chat
+# compatibility tests remain here only to prove representation/index behavior;
+# they do not establish source authority.
 verify-semantic-runtime:
 	python3 -m unittest -v \
 		tests.test_semantic_representation_identity \

@@ -1,11 +1,14 @@
 """
-pipelines/chat_ingest.py
+Legacy compatibility raw-chat ingestion pipeline.
 
 Purpose
-- Ingest one or more chat-export JSONL files into a Chroma collection.
-- Enforce idempotency at the *file + representation* level via processed_files state.
-- Use SQLite vec cache to avoid re-embedding already-seen node representations.
-- Emit a contractual run_record.json artifact for each run.
+- Preserve bounded regression/compatibility behavior for historical JSONL chat inputs.
+- Exercise representation-aware embedding/cache/vector-store behavior used by W3 proofs.
+- Emit contractual run evidence that explicitly marks this source seam as non-authoritative.
+
+This module does **not** establish Knowledge Inspect as owner of raw chat/day-file
+source semantics. Sanctioned inspection workflows should begin from producer-owned
+governed artifacts.
 """
 from __future__ import annotations
 
@@ -27,6 +30,9 @@ from kb.pipelines.run_record_contract import (
     write_json_atomic,
 )
 from kb.storage.processed_files import ProcessedFiles
+
+
+LEGACY_SOURCE_STATUS = "legacy_compatibility_non_authoritative"
 
 
 def _make_embed_fn(cfg: KBConfig):
@@ -100,6 +106,7 @@ def ingest_paths(
             "smoke": bool(smoke),
             "dry_run": bool(dry_run),
             "batch_size": int(batch_size),
+            "source_authority_status": LEGACY_SOURCE_STATUS,
         },
         inputs={"items": [{"input_kind": "paths", "paths": [str(Path(p)) for p in paths]}]},
         stage_defs=[
@@ -120,6 +127,16 @@ def ingest_paths(
             "chroma_skipped_existing": 0,
             "chroma_errors": 0,
         },
+    )
+    run_record["warnings"].append(
+        {
+            "type": "legacy_source_seam",
+            "status": LEGACY_SOURCE_STATUS,
+            "message": (
+                "Raw chat/day-file interpretation is retained for compatibility only; "
+                "Knowledge Inspect does not claim source authority for this input."
+            ),
+        }
     )
 
     vec_cache = None
@@ -207,7 +224,7 @@ def ingest_paths(
                 run_record["warnings"].append({"type": "missing_input", "path": str(p)})
                 continue
 
-            # Processed-state is private derivative state.  Namespace it by the
+            # Processed-state is private derivative state. Namespace it by the
             # embedding representation and bypass it on explicit rebuild/reset.
             processed_state_key = representation.state_key(f"file:{p.name}")
             if (
@@ -318,7 +335,10 @@ def ingest_paths(
             artifact_family="chunk_bus",
             schema_version=1,
             promotion_status="active",
-            extra={"is_primary": True},
+            extra={
+                "is_primary": True,
+                "source_authority_status": LEGACY_SOURCE_STATUS,
+            },
         )
 
         run_record["outputs"].update({
@@ -332,6 +352,7 @@ def ingest_paths(
             "embedding_representation_id": representation_id,
             "sqlite_cache_db": str(cfg.cache_db),
             "processed_files_state": str(cfg.cache_db),
+            "source_authority_status": LEGACY_SOURCE_STATUS,
         }
         if smoke_artifact_path is not None:
             run_record["outputs"]["smoke_artifact_path"] = str(smoke_artifact_path)

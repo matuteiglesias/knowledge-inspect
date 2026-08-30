@@ -1,46 +1,64 @@
 """
-cli/kb_chat_ingest.py
+Legacy compatibility CLI around ``kb.pipelines.chat_ingest.ingest_paths``.
 
-CLI wrapper around kb.pipelines.chat_ingest.ingest_paths
-
-Example:
-  python -m kb.cli.kb_chat_ingest --glob "~/Documents/GPT_n/test_data/2025*.jsonl"
-
-Notes:
-- Config is read from env via KBConfig (see kb/config/kb_config.py).
-- Secrets are read from env (e.g., JINAAI_API_KEY).
+This command is retained for bounded regression/compatibility use. It is not a
+sanctioned Knowledge Inspect source-authority seam. New workflows should begin
+from producer-owned governed artifacts such as ``chunk_set`` inputs.
 """
 from __future__ import annotations
 
 import argparse
+import glob
 from pathlib import Path
 import sys
 
 from kb.pipelines.chat_ingest import ingest_paths
-import glob
+
+
+LEGACY_SOURCE_WARNING = (
+    "DEPRECATED SOURCE SEAM: kb_chat_ingest is legacy compatibility only; "
+    "Knowledge Inspect does not own raw chat/day-file source interpretation. "
+    "Use a source-owning producer and pass a governed artifact to inspection."
+)
+
 
 def _parse_args(argv):
     ap = argparse.ArgumentParser(prog="kb_chat_ingest")
     ap.add_argument("--paths", nargs="*", default=None, help="Explicit JSONL file paths")
     ap.add_argument("--glob", default=None, help="Glob pattern to expand into paths")
-    ap.add_argument("--reset-collection", action="store_true", help="Reset Chroma collection (destructive). Requires allow_reset.")
-    ap.add_argument("--smoke", action="store_true", help="Provider-independent cheap smoke: load config, parse inputs, and emit artifacts without embedding or Chroma writes.")
-    ap.add_argument("--dry-run", action="store_true", help="Dev mode: parse+embed but do not write to Chroma nor mark processed_files.")
+    ap.add_argument(
+        "--reset-collection",
+        action="store_true",
+        help="Reset Chroma collection (destructive). Requires allow_reset.",
+    )
+    ap.add_argument(
+        "--smoke",
+        action="store_true",
+        help=(
+            "Legacy provider-independent regression mode: parse inputs and emit "
+            "compatibility artifacts without embedding or Chroma writes."
+        ),
+    )
+    ap.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Legacy dev mode: parse+embed but do not write to Chroma nor mark processed_files.",
+    )
     ap.add_argument("--batch-size", type=int, default=128, help="Chroma add batch size")
     return ap.parse_args(argv)
 
 
 def main(argv=None) -> int:
     args = _parse_args(argv or sys.argv[1:])
-    paths = []
+    print(LEGACY_SOURCE_WARNING, file=sys.stderr)
 
+    paths = []
     if args.paths:
         paths.extend([Path(p).expanduser() for p in args.paths])
 
     if args.glob:
         pat = str(Path(args.glob).expanduser())
         paths.extend([Path(p) for p in sorted(glob.glob(pat, recursive=True))])
-
 
     if not paths:
         print("No input paths. Use --paths or --glob.", file=sys.stderr)
