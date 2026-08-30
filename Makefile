@@ -1,3 +1,9 @@
+SPEECH_CHUNK_SET ?=
+SPEECH_INDEX_ROOT ?= artifacts/speech_indexes
+SPEECH_INDEX_DIR ?=
+SPEECH_QUERY ?=
+SPEECH_TOP_K ?= 5
+
 health:
 	python3 -m compileall . -q
 
@@ -14,7 +20,7 @@ inspect-last:
 	ls -lt artifacts/run_records artifacts/chunk_sets artifacts/exports | head -40
 
 # Provider-independent W3 semantic-runtime regression proof. The raw-chat
-# compatibility tests remain here only to prove representation/index behavior;
+# compatibility tests remain here only to prove representation/cache/index invariants;
 # they do not establish source authority.
 verify-semantic-runtime:
 	python3 -m unittest -v \
@@ -43,3 +49,23 @@ verify-run-evidence-demo:
 	run_case demo_legacy_write_failure 3 --operator kb.demo_legacy; \
 	after="$$(tree_hash)"; echo "AFTER_SHA256=$$after"; test "$$before" = "$$after"; \
 	echo "NO_MUTATION=PASS"
+
+# S3 adds only the query semantics pulled by the Speech Atlas consumer: a
+# deterministic lexical index plus query/top-k. Producer speech/capture/chunk IDs
+# are read-only evidence and remain owned by politics-wiki.
+verify-speech-consumer:
+	python3 -m unittest -v tests.test_speech_consumer_s3
+
+speech-index:
+	@test -n "$(SPEECH_CHUNK_SET)" || (echo "SPEECH_CHUNK_SET is required" >&2; exit 2)
+	python3 -m kb.cli.kb_speech_inspect index \
+	  --chunk-set "$(SPEECH_CHUNK_SET)" \
+	  --index-root "$(SPEECH_INDEX_ROOT)"
+
+speech-query:
+	@test -n "$(SPEECH_INDEX_DIR)" || (echo "SPEECH_INDEX_DIR is required" >&2; exit 2)
+	@test -n "$(SPEECH_QUERY)" || (echo "SPEECH_QUERY is required" >&2; exit 2)
+	python3 -m kb.cli.kb_speech_inspect query \
+	  --index-dir "$(SPEECH_INDEX_DIR)" \
+	  --query "$(SPEECH_QUERY)" \
+	  --top-k $(SPEECH_TOP_K)
