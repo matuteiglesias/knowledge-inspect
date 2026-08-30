@@ -9,15 +9,17 @@ system: kb.inspect
 role: inspection-producer
 lifecycle: active
 authority:
-  status: proposed
+  status: bounded-consumer-proofs
   owns:
   - knowledge-store selection and inspection
   - semantic representation derivative state used by inspection
   - run manifests and evidence of selection
   - bounded analysis outputs
+  - bounded lexical query/top_k semantics over explicitly approved governed chunk projections
   does_not_own:
   - source paper parsing
   - raw chat/day-file source interpretation
+  - politics-wiki speech source, speech, capture, or chunk logical identity
   - universal source-ingestion authority
   - shared schema authority
   - evidence promotion authority
@@ -28,12 +30,16 @@ authority:
 interfaces:
   consumes:
   - artifact:kb.paper-chunk-set@1
+  - producer-local:matuteiglesias/politics-wiki/speech_chunk_set.s3.v1
   produces:
   - artifact:kb.run-manifest@1
   - artifact:kb.summary-bus@1
+  - consumer-local:knowledge_inspect.speech_lexical_index.s3.v1
+  - consumer-local:knowledge_inspect.speech_query_results.s3.v1
 upstream:
 - repo.kb-contracts
 - repo.paper-kb
+- repo.politics-wiki
 downstream:
 - repo.context-routing
 - repo.matias-context-mcp
@@ -42,13 +48,33 @@ canonical_commands:
 - make smoke
 - make verify-run-evidence-demo
 - make verify-semantic-runtime
+- make verify-speech-consumer
 generated_paths:
 - runs/
 - artifacts/
 verification:
   status: bounded-interface-proofs
   last_verified: '2026-08-30'
-  command: make smoke; make verify-run-evidence-demo; make verify-semantic-runtime
+  command: make smoke; make verify-run-evidence-demo; make verify-semantic-runtime; make verify-speech-consumer
+  speech_s3_proof:
+    producer_workflow_run_id: '33340133664'
+    producer_artifact_id: '9740295058'
+    producer_artifact_sha256: a19ae99e12fcd90545ddb787a7d3fcf42ca00a9d9650d740b8d292b5637775c0
+    source_release_id: speech-release:ed23fb80b11f342fcc72b65f
+    projection_id: speech-chunks:47e79e2e782cef5ed53ea4a4
+    producer_chunk_count: 415
+    producer_chunk_inventory_sha256: 0ccc3d797eb884667c4661d95de0711b51160aa9fe0292e37115931a2ed74f47
+    consumer_head: 3c287e0de5f2634deab5e7fee4159af731414642
+    consumer_ci_run_id: '33340255504'
+    derived_index_id: speech-lexical-index:aa464c1f0015105b46e73c11
+    acceptance_queries:
+    - industria
+    - inflación
+    - producción
+    - deuda
+    - educación
+    returned_hits_resolved_to_producer_evidence: 25
+    producer_input_mutated: false
   proven:
   - Paper KB producer-owned chunk_set artifacts validate through the real Knowledge Inspect consumer CLI in cross-repo CI
   - canonical smoke begins from a sanitized producer-owned governed chunk_set fixture rather than raw chat/day-file parsing
@@ -56,8 +82,10 @@ verification:
   - embedding cache, processed-state, and Chroma derivative identity are representation-aware while logical chunk identity remains stable
   - a sanitized governed fixture can be indexed, directly queried, target-reset, rebuilt, and queried again with stable logical membership while unrelated Chroma state survives
   - governed chunk_set analysis records no false vector/retrieval/clustering use, while Chroma fallback records the resolved embedding representation and membership/result identity
-  - current public analyze surfaces do not expose query/top_k/cutoff/reranking/filter semantics; those remain unclaimed until a real retrieval consumer exists
+  - the first real speech retrieval consumer proved deterministic lexical query/top_k over one exact politics-wiki speech projection while preserving producer speech/capture/chunk IDs and source URL evidence end-to-end
+  - the five Speech Atlas acceptance concepts were served without embeddings, filters, reranking, political labels, or source-authority duplication
   unknowns:
+  - query/top_k is proven only for the bounded speech lexical adapter and does not establish universal retrieval semantics
   - W3 found no direct current Knowledge Inspect -> KB Artifacts handoff
   - exact remaining downstream interface compatibility remains an independent proof task
 maintenance:

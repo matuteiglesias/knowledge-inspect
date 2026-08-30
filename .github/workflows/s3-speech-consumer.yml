@@ -1,0 +1,39 @@
+name: S3 speech consumer
+
+on:
+  pull_request:
+    paths:
+      - "SYSTEM.yaml"
+      - "AGENTS.md"
+      - "Makefile"
+      - "docs/architecture/s3-speech-consumer-proof.md"
+      - "kb/speech_inspect.py"
+      - "kb/cli/kb_speech_inspect.py"
+      - "tests/test_speech_consumer_s3.py"
+      - ".github/workflows/s3-speech-consumer.yml"
+  push:
+    branches: [main]
+    paths:
+      - "SYSTEM.yaml"
+      - "Makefile"
+      - "docs/architecture/s3-speech-consumer-proof.md"
+      - "kb/speech_inspect.py"
+      - "kb/cli/kb_speech_inspect.py"
+      - "tests/test_speech_consumer_s3.py"
+      - ".github/workflows/s3-speech-consumer.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  speech-consumer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile bounded consumer surfaces
+        run: python -m compileall kb -q
+      - name: Prove adapter, index, query and identity preservation
+        run: python -m unittest -v tests.test_speech_consumer_s3
