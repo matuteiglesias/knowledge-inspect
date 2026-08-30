@@ -1,6 +1,6 @@
 # Textflow W3 — semantic runtime hardening
 
-Status: **implementation-complete pending the final branch verification gate**.
+Status: **complete; W3 gate passed on 2026-08-30**.
 
 This wave reconciles the useful semantic-runtime invariants recovered from `textflow-core` with the current Knowledge Inspect implementation. It is a comparison-and-hardening wave, not a Textflow code port.
 
@@ -192,7 +192,9 @@ The CI workflow `.github/workflows/w3-semantic-runtime.yml` runs the same bounde
 
 ## W3 gate
 
-W3 passes when all of the following are true:
+**PASS — 2026-08-30.** The final branch verification completed successfully with the bounded provider-independent suite, including real persistent Chroma 1.5.9.
+
+The accepted gate proves that:
 
 - one sanitized governed fixture can be represented and indexed without external provider access;
 - logical identity is independent of embedding representation identity;
