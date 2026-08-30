@@ -23,3 +23,5 @@ jobs:
         run: python -m unittest -v tests.test_semantic_representation_identity tests.test_chat_ingest_smoke
       - name: Vector-store rebuildability proof
         run: python -m unittest -v tests.test_vectorstore_rebuildability
+      - name: Semantic run-evidence proofs
+        run: python -m unittest -v tests.test_semantic_run_evidence tests.test_chat_analyze_input_discovery
