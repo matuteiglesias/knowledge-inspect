@@ -54,6 +54,10 @@ class ChatIngestSmokeTests(unittest.TestCase):
                 ]
                 self.assertEqual(len(legacy_warnings), 1)
                 self.assertEqual(legacy_warnings[0]["status"], LEGACY_SOURCE_STATUS)
+                self.assertEqual(
+                    res.run_record["outputs"]["internal_side_effects"]["source_authority_status"],
+                    LEGACY_SOURCE_STATUS,
+                )
                 self.assertIn("created_at", res.run_record)
                 self.assertIn("completed_at", res.run_record)
                 self.assertIn("smoke_artifact_path", res.run_record.get("outputs", {}))
@@ -84,10 +88,6 @@ class ChatIngestSmokeTests(unittest.TestCase):
                 artifact_by_kind = {a["artifact_kind"]: a for a in manifest["artifacts"]}
                 self.assertIn("chunk_set", artifact_by_kind)
                 self.assertEqual(Path(artifact_by_kind["chunk_set"]["path"]), chunk_set_path)
-                self.assertEqual(
-                    artifact_by_kind["chunk_set"]["source_authority_status"],
-                    LEGACY_SOURCE_STATUS,
-                )
 
                 smoke_artifact_path = Path(res.run_record["outputs"]["smoke_artifact_path"])
                 self.assertTrue(smoke_artifact_path.exists(), "smoke artifact should exist")
