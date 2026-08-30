@@ -4,7 +4,7 @@
 
 Maintain bounded selection, inspection, run-manifest, and analysis-output production with explicit provenance and no hidden mutation of source knowledge.
 
-This repository inspects and summarizes approved inputs. It does not own paper parsing, shared interoperability contracts, evidence-promotion authority, context routing, MCP transport, or source-repository semantics.
+This repository inspects and summarizes approved inputs. It does not own paper parsing, raw chat/day-file interpretation, shared interoperability contracts, evidence-promotion authority, context routing, MCP transport, or source-repository semantics.
 
 ## Authority boundary
 
@@ -25,7 +25,9 @@ Agents must not independently:
 - copy shared schemas into a competing local authority;
 - expose physical paths, secrets, private source content, or large bodies in outputs or fixtures;
 - report a partial, malformed, or unverifiable run as successful;
-- add general retrieval, routing, MCP, paper-ingestion, or orchestration behavior.
+- add general retrieval, routing, MCP, paper-ingestion, raw-chat ingestion authority, or orchestration behavior.
+
+The retained `kb_chat_ingest` / `kb.parsers.chat_jsonl` path is **legacy compatibility only**. It exists to preserve bounded regression behavior and historical operability. It must not be used as evidence that Knowledge Inspect owns raw chat/day-file source semantics, and it must not become the canonical start of a new workflow. A new source family requires a source-owning producer that emits a governed artifact.
 
 ## Run evidence contract
 
@@ -66,9 +68,12 @@ Current bounded surfaces include:
 make health
 make smoke
 make verify-run-evidence-demo
+make verify-semantic-runtime
 ```
 
-`make health` checks import/compile health. `make smoke` uses a bounded fixture. `make verify-run-evidence-demo` exercises expected success and failure evidence while asserting fixture immutability.
+`make health` checks import/compile health. `make smoke` begins from the sanitized producer-owned governed `tests/fixtures/governed_smoke.chunk_set.json`, validates it, and runs the explicit chunk-set analysis path in a temporary `KB_ROOT`. It deliberately does **not** make raw chat parsing the canonical smoke seam.
+
+`make verify-semantic-runtime` retains raw-chat compatibility tests only to prove W3 representation/cache/index invariants and legacy behavior; those tests do not establish source authority. `make verify-run-evidence-demo` exercises expected success and failure evidence while asserting fixture immutability.
 
 `make inspect-last` is an operator convenience that lists recent artifacts; it is not a validation command and does not establish correctness.
 
