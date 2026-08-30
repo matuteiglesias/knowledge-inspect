@@ -3,8 +3,8 @@ pipelines/chat_ingest.py
 
 Purpose
 - Ingest one or more chat-export JSONL files into a Chroma collection.
-- Enforce idempotency at the *file* level via processed_files table.
-- Use SQLite vec cache to avoid re-embedding already-seen nodes.
+- Enforce idempotency at the *file + representation* level via processed_files state.
+- Use SQLite vec cache to avoid re-embedding already-seen node representations.
 - Emit a contractual run_record.json artifact for each run.
 """
 from __future__ import annotations
@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set
 import os
 
 from kb.config.kb_config import KBConfig, load_config
+from kb.embedding.representation import EmbeddingRepresentation
 from kb.parsers.chat_jsonl import filter_substantive_nodes, jsonl_to_document, node_id_from_node_text, parse_markdown_nodes
 from kb.pipelines.run_record_contract import (
     add_output_artifact,
@@ -71,6 +72,10 @@ def ingest_paths(
     cfg = cfg or load_config()
     cfg.ensure_dirs()
 
+    representation = EmbeddingRepresentation.from_config(cfg)
+    representation_id = representation.representation_id
+    resolved_collection = representation.collection_name(cfg.collection_name)
+
     run_id = make_run_id("kb_chat_ingest")
     rr_path = cfg.run_records_dir / f"{run_id}.run_record.json"
 
@@ -82,11 +87,15 @@ def ingest_paths(
         config={
             "cache_db": str(cfg.cache_db),
             "chroma_dir": str(cfg.chroma_dir),
+            # Compatibility: keep the operator-facing configured base name.
             "collection": cfg.collection_name,
+            "resolved_collection": resolved_collection,
             "embed_provider": cfg.embed_provider,
             "embed_model": cfg.embed_model,
             "embed_task": cfg.embed_task,
             "embed_dim": cfg.embed_dim,
+            "embedding_representation_id": representation_id,
+            "embedding_representation": representation.evidence(),
             "reset_collection": bool(reset_collection),
             "smoke": bool(smoke),
             "dry_run": bool(dry_run),
@@ -138,10 +147,25 @@ def ingest_paths(
 
             embed_fn = _make_embed_fn(cfg)
             vec_cache = SQLiteVecCache.open(cfg.cache_db)
-            cached_embed = vec_cache.cached_embedder(embed_fn, expected_dim=cfg.embed_dim)
+            cached_embed = vec_cache.cached_embedder(
+                embed_fn,
+                expected_dim=cfg.embed_dim,
+                representation_id=representation_id,
+            )
 
-            chroma_cfg = ChromaConfig(chroma_dir=cfg.chroma_dir, collection_name=cfg.collection_name, allow_reset=...)
-            client, coll = get_collection(chroma_cfg, reset=bool(reset_collection))
+            chroma_cfg = ChromaConfig(
+                chroma_dir=cfg.chroma_dir,
+                collection_name=resolved_collection,
+                allow_reset=bool(reset_collection),
+            )
+            client, coll = get_collection(
+                chroma_cfg,
+                reset=bool(reset_collection),
+                metadata={
+                    "kb_embedding_representation_id": representation_id,
+                    "kb_collection_base": cfg.collection_name,
+                },
+            )
 
             ids_batch: List[str] = []
             docs_batch: List[str] = []
@@ -183,7 +207,14 @@ def ingest_paths(
                 run_record["warnings"].append({"type": "missing_input", "path": str(p)})
                 continue
 
-            if pf is not None and pf.is_processed(p.name):
+            # Processed-state is private derivative state.  Namespace it by the
+            # embedding representation and bypass it on explicit rebuild/reset.
+            processed_state_key = representation.state_key(f"file:{p.name}")
+            if (
+                pf is not None
+                and not reset_collection
+                and pf.is_processed(processed_state_key)
+            ):
                 run_record["counters"]["files_skipped_processed"] += 1
                 continue
 
@@ -236,6 +267,7 @@ def ingest_paths(
                     "source_file": p.name,
                     "date": (doc.metadata or {}).get("date", p.stem),
                     "header_path": header_path,
+                    "embedding_representation_id": representation_id,
                 })
 
                 if len(ids_batch) >= int(batch_size):
@@ -245,7 +277,7 @@ def ingest_paths(
                 flush_batch()
 
             if not dry_run and not smoke:
-                pf.mark_processed(p.name)
+                pf.mark_processed(processed_state_key)
             run_record["counters"]["files_processed"] += 1
 
         if smoke:
@@ -296,6 +328,8 @@ def ingest_paths(
         run_record["outputs"]["internal_side_effects"] = {
             "chroma_dir": str(cfg.chroma_dir),
             "collection": cfg.collection_name,
+            "resolved_collection": resolved_collection,
+            "embedding_representation_id": representation_id,
             "sqlite_cache_db": str(cfg.cache_db),
             "processed_files_state": str(cfg.cache_db),
         }
