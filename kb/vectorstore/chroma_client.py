@@ -14,15 +14,19 @@ from chromadb.config import Settings
 class ChromaConfig:
     chroma_dir: Path
     collection_name: str
+    # Application-level authorization for destructive collection replacement.
+    # This is deliberately distinct from Chroma's process-wide client capability.
     allow_reset: bool = False
     mode: str = "persistent"  # "persistent" or "ephemeral"
 
 
 def _make_settings(cfg: ChromaConfig) -> Settings:
-    # Do NOT pass None. Some chromadb versions assume settings is an object.
-    # Keep it minimal and explicit.
+    # Chroma shares one System per persistent path and rejects clients opened for
+    # the same path with materially different Settings. Keep the client-level
+    # reset capability stable; `get_collection()` still requires cfg.allow_reset
+    # before performing any destructive collection deletion.
     return Settings(
-        allow_reset=bool(cfg.allow_reset),
+        allow_reset=True,
         anonymized_telemetry=False,
     )
 
@@ -59,10 +63,10 @@ def get_collection(
 ) -> Tuple[Any, Any]:
     """Return ``(client, collection)`` for one private derivative collection.
 
-    ``reset=True`` is intentionally collection-scoped.  The old implementation
-    called ``client.reset()``, which cleared every collection in the Chroma
-    client even though the CLI contract says "reset collection".  W3 keeps
-    unrelated derivative representations intact.
+    ``reset=True`` is intentionally collection-scoped. The application must
+    authorize it through ``cfg.allow_reset``. Chroma's broader client-level reset
+    capability remains enabled only so clients sharing a persistent path are
+    constructed with stable settings; this helper never calls ``client.reset()``.
     """
     client = _make_client(cfg)
 
