@@ -107,6 +107,18 @@ It may:
 It must not copy physical paths from producer artifacts and must not decide what
 is eligible, selected, promoted, or published.
 
+## Current M7 adapter state
+
+As of 2026-10-07:
+
+- `producer-local:knowledge-inspect.evidence-jsonl@1` is implemented and CI-verified;
+- KB Artifacts consumes the interface through its generic JSONL reader in a pinned cross-repository proof;
+- the proof uses logical corpus aliases downstream, so producer/work physical paths are not propagated;
+- MCP subsequently reads the resulting KB Artifacts manifest without adding a producer-specific server path;
+- this proves one bounded `summary_bus/chunk_set_summary` composition seam only.
+
+Do not generalize this proof to other artifact families without a new producer-owned projection and consumer fixture.
+
 ## Contract changes
 
 For changes to manifest identity, producer identity, output schemas, codecs, or shared interfaces:
