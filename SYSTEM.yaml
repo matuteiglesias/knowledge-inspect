@@ -15,6 +15,7 @@ authority:
   - semantic representation derivative state used by inspection
   - run manifests and evidence of selection
   - bounded analysis outputs
+  - producer-specific deterministic projection of governed Knowledge Inspect summaries into generic JSONL evidence records
   - bounded lexical query/top_k semantics over explicitly approved governed chunk projections
   does_not_own:
   - source paper parsing
@@ -24,7 +25,6 @@ authority:
   - shared schema authority
   - evidence promotion authority
   - context routing
-  - downstream JSONL evidence adaptation
   - MCP transport policy
   - universal retrieval or reranking architecture
 interfaces:
@@ -36,6 +36,7 @@ interfaces:
   - artifact:kb.summary-bus@1
   - consumer-local:knowledge_inspect.speech_lexical_index.s3.v1
   - consumer-local:knowledge_inspect.speech_query_results.s3.v1
+  - producer-local:knowledge-inspect.evidence-jsonl@1
 upstream:
 - repo.kb-contracts
 - repo.paper-kb
@@ -49,6 +50,7 @@ canonical_commands:
 - make verify-run-evidence-demo
 - make verify-semantic-runtime
 - make verify-speech-consumer
+- make verify-evidence-export
 generated_paths:
 - runs/
 - artifacts/
@@ -86,8 +88,8 @@ verification:
   - the five Speech Atlas acceptance concepts were served without embeddings, filters, reranking, political labels, or source-authority duplication
   unknowns:
   - query/top_k is proven only for the bounded speech lexical adapter and does not establish universal retrieval semantics
-  - W3 found no direct current Knowledge Inspect -> KB Artifacts handoff
-  - exact remaining downstream interface compatibility remains an independent proof task
+  - the producer-owned JSONL evidence adapter is bounded to summary_bus projection and does not establish downstream selection or promotion authority
+  - direct KB Artifacts compatibility remains an independent consumer proof until the downstream repository validates this adapter output
 maintenance:
   cadence: quarterly
   next_review: '2026-11-01'

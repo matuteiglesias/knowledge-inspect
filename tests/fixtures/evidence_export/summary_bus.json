@@ -1,0 +1,19 @@
+{
+  "artifact_family": "summary_bus",
+  "artifact_kind": "chunk_set_summary",
+  "schema_version": 1,
+  "run_id": "kb_chat_analyze_20261007T120000Z",
+  "producer": "kb",
+  "entrypoint": "kb_chat_analyze",
+  "input_artifacts": [
+    {
+      "path": "/private/local/path/seed.chunk_set.json",
+      "artifact_kind": "chunk_set",
+      "artifact_family": "chunk_bus",
+      "run_id": "kb_chat_ingest_20261007T115500Z",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "summary_text": "# combined_notes\\n\\n## Fixture\\nValidated governed evidence for downstream selection.\\n",
+  "export_path": "/private/local/path/combined_notes.md"
+}

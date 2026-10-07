@@ -56,6 +56,9 @@ verify-run-evidence-demo:
 verify-speech-consumer:
 	python3 -m unittest -v tests.test_speech_consumer_s3
 
+verify-evidence-export:
+	python3 -m unittest -v tests.test_evidence_export
+
 speech-index:
 	@test -n "$(SPEECH_CHUNK_SET)" || (echo "SPEECH_CHUNK_SET is required" >&2; exit 2)
 	python3 -m kb.cli.kb_speech_inspect index \

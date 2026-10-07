@@ -4,7 +4,7 @@
 
 Maintain bounded selection, inspection, run-manifest, and analysis-output production with explicit provenance and no hidden mutation of source knowledge.
 
-This repository inspects and summarizes approved inputs. It does not own paper parsing, raw chat/day-file interpretation, shared interoperability contracts, evidence-promotion authority, context routing, MCP transport, or source-repository semantics.
+This repository inspects and summarizes approved inputs. It may project its own governed summary artifacts into generic JSONL evidence records. It does not own paper parsing, raw chat/day-file interpretation, shared interoperability contracts, evidence-promotion authority, downstream selection policy, context routing, MCP transport, or source-repository semantics.
 
 ## Authority boundary
 
@@ -15,6 +15,7 @@ Agents may:
 - repair a reproduced inspection, manifest, export, or verification defect;
 - improve deterministic selection, codecs, fixtures, and run evidence;
 - implement an explicitly approved output or contract change;
+- maintain the deterministic producer-owned `summary_bus` -> generic evidence JSONL projection without adding selection semantics;
 - prepare a discrepancy report when source and manifest evidence disagree.
 
 Agents must not independently:
@@ -22,6 +23,7 @@ Agents must not independently:
 - mutate source repositories, source documents, fixtures, or historical run evidence;
 - reinterpret producer identity through fuzzy name matching;
 - promote an inspection result into selected evidence;
+- add ranking, eligibility, deduplication, selected-evidence identity, promotion, or publication semantics to the JSONL adapter;
 - copy shared schemas into a competing local authority;
 - expose physical paths, secrets, private source content, or large bodies in outputs or fixtures;
 - report a partial, malformed, or unverifiable run as successful;
@@ -69,6 +71,7 @@ make health
 make smoke
 make verify-run-evidence-demo
 make verify-semantic-runtime
+make verify-evidence-export
 ```
 
 `make health` checks import/compile health. `make smoke` begins from the sanitized producer-owned governed `tests/fixtures/governed_smoke.chunk_set.json`, validates it, and runs the explicit chunk-set analysis path in a temporary `KB_ROOT`. It deliberately does **not** make raw chat parsing the canonical smoke seam.
@@ -88,6 +91,21 @@ Run records, chunk sets, exports, selected views, diagnostics, and evidence bund
 - Use sanitized representative fixtures with the same production codecs.
 - Preserve failed and partial evidence when it is safe and useful.
 - Keep generated outputs distinct from source fixtures and normative contracts.
+
+## Evidence adapter boundary
+
+The only downstream evidence adaptation owned here is
+`producer-local:knowledge-inspect.evidence-jsonl@1`.
+
+It may:
+
+- read governed Knowledge Inspect `summary_bus/chunk_set_summary` artifacts;
+- preserve run identity plus source/text checksums;
+- project safe upstream artifact identity/checksum fields;
+- emit deterministic generic JSONL accepted by producer-agnostic consumers.
+
+It must not copy physical paths from producer artifacts and must not decide what
+is eligible, selected, promoted, or published.
 
 ## Contract changes
 
