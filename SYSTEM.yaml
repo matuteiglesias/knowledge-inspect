@@ -41,7 +41,7 @@ upstream:
 - repo.paper-kb
 - repo.politics-wiki
 downstream:
-- repo.context-routing
+- repo.context
 - repo.matias-context-mcp
 canonical_commands:
 - make health
