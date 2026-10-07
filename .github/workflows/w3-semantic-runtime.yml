@@ -19,6 +19,8 @@ jobs:
         run: make health
       - name: Provider-independent smoke
         run: make smoke
+      - name: Producer-owned evidence JSONL proof
+        run: make verify-evidence-export
       - name: Representation identity proofs
         run: python -m unittest -v tests.test_semantic_representation_identity tests.test_chat_ingest_smoke
       - name: Vector-store rebuildability proof
