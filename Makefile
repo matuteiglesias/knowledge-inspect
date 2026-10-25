@@ -3,6 +3,7 @@ SPEECH_INDEX_ROOT ?= artifacts/speech_indexes
 SPEECH_INDEX_DIR ?=
 SPEECH_QUERY ?=
 SPEECH_TOP_K ?= 5
+SPEECH_EVIDENCE_ROOT ?= artifacts/speech_run_evidence
 
 health:
 	python3 -m compileall . -q
@@ -63,7 +64,8 @@ speech-index:
 	@test -n "$(SPEECH_CHUNK_SET)" || (echo "SPEECH_CHUNK_SET is required" >&2; exit 2)
 	python3 -m kb.cli.kb_speech_inspect index \
 	  --chunk-set "$(SPEECH_CHUNK_SET)" \
-	  --index-root "$(SPEECH_INDEX_ROOT)"
+	  --index-root "$(SPEECH_INDEX_ROOT)" \
+	  --evidence-root "$(SPEECH_EVIDENCE_ROOT)"
 
 speech-query:
 	@test -n "$(SPEECH_INDEX_DIR)" || (echo "SPEECH_INDEX_DIR is required" >&2; exit 2)
@@ -71,4 +73,5 @@ speech-query:
 	python3 -m kb.cli.kb_speech_inspect query \
 	  --index-dir "$(SPEECH_INDEX_DIR)" \
 	  --query "$(SPEECH_QUERY)" \
-	  --top-k $(SPEECH_TOP_K)
+	  --top-k $(SPEECH_TOP_K) \
+	  --evidence-root "$(SPEECH_EVIDENCE_ROOT)"
